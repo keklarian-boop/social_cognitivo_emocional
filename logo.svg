@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 220" role="img" aria-label="Logo Convivencia Escolar y Psicología">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#fde68a"/>
+    </linearGradient>
+  </defs>
+  <circle cx="110" cy="110" r="102" fill="#f9fafb" stroke="#bdbdbd" stroke-width="2.2"/>
+  <g stroke-linecap="round" opacity=".75" stroke-width="10">
+    <path d="M22 94h28" stroke="#b8d98f"/>
+    <path d="M33 65l24 12" stroke="#b8d98f"/>
+    <path d="M56 37l17 22" stroke="#e7a5ab"/>
+    <path d="M114 16v28" stroke="#e7a5ab"/>
+    <path d="M167 35l-16 22" stroke="#f0cf9b"/>
+    <path d="M192 65l-24 12" stroke="#f0cf9b"/>
+    <path d="M198 112h-27" stroke="#f0cf9b"/>
+    <path d="M171 168l-19-19" stroke="#d5a8dc"/>
+    <path d="M111 202v-27" stroke="#9ed2eb"/>
+    <path d="M55 182l18-21" stroke="#9ed2eb"/>
+  </g>
+  <path d="M110 49 156 60v52c0 34-28 55-46 62-18-7-46-28-46-62V60z" fill="url(#g)" stroke="#364152" stroke-width="3"/>
+  <path d="M110 58 149 67v44c0 29-23 46-39 53-16-7-39-24-39-53V67z" fill="#fffdf0" stroke="#9ca3af" stroke-width="1.8"/>
+  <text x="110" y="82" text-anchor="middle" font-size="8" fill="#374151" font-family="Arial, sans-serif">POETA</text>
+  <text x="110" y="93" text-anchor="middle" font-size="8" fill="#374151" font-family="Arial, sans-serif">DANIEL DE LA VEGA</text>
+  <text x="110" y="115" text-anchor="middle" font-size="19" fill="#1e3a8a">✒</text>
+  <text x="110" y="133" text-anchor="middle" font-size="8" fill="#374151" font-family="Arial, sans-serif">QUILPUÉ</text>
+  <text x="110" y="32" text-anchor="middle" font-size="14" fill="#4b5563" font-style="italic" font-weight="700">Convivencia Escolar</text>
+  <text x="110" y="194" text-anchor="middle" font-size="14" fill="#4b5563" font-style="italic" font-weight="700">Psicología</text>
+</svg>
