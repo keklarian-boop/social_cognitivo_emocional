@@ -183,16 +183,58 @@ function analyzeOpenAnswers(answers) {
 function recommendations(byDimension) {
   const recs = [];
   if (byDimension['Regulación emocional'].avg < 3.0) {
-    recs.push('Entrenamiento en identificación emocional, técnicas de respiración diafragmática, registro emocional y talleres de mediación escolar.');
+    recs.push('Plan de 4 semanas en aula: (1) rutina diaria de semáforo emocional al inicio de clase, (2) práctica guiada de respiración 4-4-6 por 3 minutos, (3) registro emocional breve al cierre de jornada, y (4) derivación a convivencia escolar si persiste desregulación intensa.');
   }
   if (byDimension['Competencia social'].avg < 3.0) {
-    recs.push('Programa de habilidades sociales: role playing, escucha activa, resolución pacífica de conflictos y mediación guiada.');
+    recs.push('Intervención docente estructurada: dos actividades semanales de role-playing, protocolo de resolución de conflictos en 5 pasos (escuchar, validar, acordar, reparar, seguimiento) y mediación guiada con pauta observable.');
   }
   if (byDimension['Conciencia emocional'].avg < 3.0) {
-    recs.push('Rutina semanal de vocabulario emocional y autoobservación para fortalecer la conciencia emocional.');
+    recs.push('Fortalecer vocabulario emocional con tarjetas de emociones 3 veces por semana, identificación de detonantes y conversación reflexiva docente-estudiante de 5 minutos.');
   }
-  if (!recs.length) recs.push('Mantener prácticas socioemocionales actuales e incorporar tutorías entre pares para consolidar fortalezas.');
+  if (byDimension['Autonomía emocional'].avg < 3.0) {
+    recs.push('Acompañamiento en autonomía: metas semanales SMART, autoevaluación de logro y retroalimentación positiva específica por parte de docentes y familia.');
+  }
+  if (byDimension['Vida y bienestar'].avg < 3.0) {
+    recs.push('Plan de bienestar integral: higiene del sueño, pausa activa diaria, organización de tiempos de estudio/descanso y seguimiento quincenal con apoderado.');
+  }
+  if (!recs.length) recs.push('Mantener prácticas actuales y establecer monitoreo mensual para sostener el desarrollo socioemocional.');
   return recs;
+}
+
+function familyGuidanceDetailed(record) {
+  const guidance = [];
+  if (record.byDimension['Regulación emocional'].avg < 3) {
+    guidance.push('Aplicar rutina familiar diaria de 10 minutos: nombrar emoción del día, validar sin juicio, practicar respiración conjunta (inhalar 4, sostener 4, exhalar 6) y acordar una acción de autocuidado.');
+  }
+  if (record.byDimension['Competencia social'].avg < 3) {
+    guidance.push('Realizar actividades cooperativas en casa 2 veces por semana (cocinar, ordenar, juegos de equipo), reforzando turnos de palabra, escucha activa y lenguaje respetuoso.');
+  }
+  if (record.byDimension['Conciencia emocional'].avg < 3) {
+    guidance.push('Usar bitácora emocional simple: “qué sentí, por qué lo sentí, qué hice, qué puedo mejorar”, revisándola en familia al menos 3 días por semana.');
+  }
+  if (record.byDimension['Vida y bienestar'].avg < 3) {
+    guidance.push('Asegurar hábitos base: horario estable de sueño, disminución de pantallas 60 minutos antes de dormir y actividad física de 20-30 minutos diarios.');
+  }
+  if (!guidance.length) guidance.push('Mantener espacios de conversación emocional semanal y reforzar conductas prosociales observadas.');
+  return guidance;
+}
+
+function teacherPreventiveActions(record) {
+  const actions = [];
+  if (record.byDimension['Regulación emocional'].avg < 3) {
+    actions.push('Docente: instalar rutina de apertura socioemocional (2-3 minutos), enseñar técnica de pausa-respiro-pienso-actúo y registrar incidentes para seguimiento semanal.');
+  }
+  if (record.byDimension['Competencia social'].avg < 3) {
+    actions.push('Docente: implementar acuerdos de convivencia co-construidos, círculos restaurativos quincenales y mediación estructurada con evidencia de cumplimiento.');
+  }
+  if (record.byDimension['Autonomía emocional'].avg < 3) {
+    actions.push('Docente: diseñar tareas graduadas con criterios claros y metas de progreso individual, reforzando autoeficacia y autonomía.');
+  }
+  if (record.byDimension['Vida y bienestar'].avg < 3) {
+    actions.push('Docente/Convivencia: activar coordinación con familia para plan de bienestar y revisar factores de riesgo académicos y psicosociales.');
+  }
+  if (!actions.length) actions.push('Docente: mantener monitoreo preventivo mensual y reforzar prácticas socioemocionales eficaces del curso.');
+  return actions;
 }
 
 function longitudinalInsight(record) {
@@ -266,6 +308,8 @@ function renderIndividual(record) {
     <p><strong>Comparación intra sujeto:</strong> ${record.intraSubject.text}</p>
     <p><strong>Comparación por curso:</strong> ${record.courseBenchmark.text}</p>
     <p><strong>Derivación a salud:</strong> ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}</p>
+    <p><strong>Orientaciones familiares:</strong> ${familyGuidanceDetailed(record).join(' ')}</p>
+    <p><strong>Acciones preventivas para docentes:</strong> ${teacherPreventiveActions(record).join(' ')}</p>
   `;
 
   drawCharts(record);
@@ -295,6 +339,21 @@ function drawCharts(record) {
 function saveRecord(record) {
   state.records.push(record);
   localStorage.setItem('seRecords', JSON.stringify(state.records));
+}
+
+function deleteRecord(recordId) {
+  state.records = state.records.filter((r) => r.id !== recordId);
+  if (state.currentRecord?.id === recordId) {
+    state.currentRecord = null;
+    summaryEl.innerHTML = '<p>Selecciona o registra una evaluación para ver resultados individuales.</p>';
+    ['download-individual-pdf', 'download-radar', 'download-bars'].forEach((id) => (document.getElementById(id).disabled = true));
+    state.charts.bar?.destroy();
+    state.charts.radar?.destroy();
+    state.charts.bar = null;
+    state.charts.radar = null;
+  }
+  localStorage.setItem('seRecords', JSON.stringify(state.records));
+  renderAdmin();
 }
 
 function getFilteredRecords() {
@@ -369,13 +428,7 @@ function renderTemplateVerification(record, customTemplate = null) {
 }
 
 function familySuggestions(record) {
-  const tips = [];
-  if (record.byDimension['Regulación emocional'].avg < 3) tips.push('En casa, practicar respiración de 3 minutos y conversación breve diaria sobre emociones.');
-  if (record.byDimension['Competencia social'].avg < 3) tips.push('Promover actividades colaborativas fuera de pantalla y modelar resolución pacífica de conflictos.');
-  if (record.byDimension['Conciencia emocional'].avg < 3) tips.push('Usar un registro emocional simple (qué sentí, por qué, cómo actué).');
-  if (record.byDimension['Vida y bienestar'].avg < 3) tips.push('Fortalecer rutinas de sueño, actividad física y tiempos de descanso familiar.');
-  if (!tips.length) tips.push('Mantener refuerzo positivo y espacios semanales de diálogo emocional en familia.');
-  return tips;
+  return familyGuidanceDetailed(record);
 }
 
 async function createRecordChartImage(record, type) {
@@ -436,7 +489,9 @@ async function makeAllIndividualPdf(records) {
     });
 
     const fam = familySuggestions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
+    const teacher = teacherPreventiveActions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
     doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 6);
+    doc.text(doc.splitTextToSize(`Acciones preventivas para docentes: ${teacher}`, 180), 14, y + 28);
 
     const barImg = await createRecordChartImage(record, 'bar');
     const radarImg = await createRecordChartImage(record, 'radar');
@@ -489,7 +544,7 @@ function renderAdmin() {
   tableBody.innerHTML = data.map((r) => {
     const alert = r.generalAvg <= 2.4 ? '⚠️ Crítico' : 'OK';
     const name = r.anonymize ? `Est-${r.id.slice(-4)}` : r.name;
-    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td><td><button class="secondary verify-template" data-id="${r.id}">Verificar plantilla</button></td></tr>`;
+    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td><td><button class="secondary verify-template" data-id="${r.id}">Verificar plantilla</button> <button class="secondary delete-record" data-id="${r.id}">Eliminar</button></td></tr>`;
   }).join('');
 }
 
@@ -572,6 +627,60 @@ function makeGroupPdf(records) {
   doc.save(`reporte_grupal_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
+async function makeCourseReportPdf(records) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  const grouped = {};
+  records.forEach((r) => {
+    grouped[r.course] = grouped[r.course] || [];
+    grouped[r.course].push(r);
+  });
+
+  const coursesInReport = Object.keys(grouped).sort();
+  for (let i = 0; i < coursesInReport.length; i += 1) {
+    const course = coursesInReport[i];
+    const rows = grouped[course];
+    if (i > 0) doc.addPage();
+
+    doc.setFillColor(17, 24, 39);
+    doc.rect(0, 0, 210, 20, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(14);
+    doc.text(`Reporte por curso para docentes: ${course}`, 14, 13);
+    doc.setTextColor(15, 23, 42);
+
+    const avgGeneral = Number((rows.reduce((a, r) => a + r.generalAvg, 0) / rows.length).toFixed(2));
+    doc.setFontSize(10);
+    doc.text(`Estudiantes evaluados: ${rows.length}`, 14, 30);
+    doc.text(`Promedio general del curso: ${avgGeneral}`, 14, 36);
+
+    let y = 44;
+    dimensions.forEach((d) => {
+      const mean = Number((rows.reduce((a, r) => a + r.byDimension[d].avg, 0) / rows.length).toFixed(2));
+      doc.text(`${d}: ${mean}`, 14, y);
+      y += 6;
+    });
+
+    const critical = rows.filter((r) => r.generalAvg <= 2.4).length;
+    doc.text(`Casos críticos en curso: ${critical}`, 14, y + 2);
+
+    const teacherActions = [];
+    rows.forEach((r) => teacherPreventiveActions(r).forEach((a) => teacherActions.push(a)));
+    const uniqueActions = [...new Set(teacherActions)].slice(0, 6);
+
+    doc.text('Acciones preventivas sugeridas para docentes:', 14, y + 10);
+    doc.text(doc.splitTextToSize(uniqueActions.map((a, idx) => `${idx + 1}) ${a}`).join(' '), 180), 14, y + 16);
+
+    const familyLines = [];
+    rows.forEach((r) => familyGuidanceDetailed(r).forEach((g) => familyLines.push(g)));
+    const uniqueFamily = [...new Set(familyLines)].slice(0, 5);
+    doc.text('Orientaciones para coordinación con familias:', 14, y + 54);
+    doc.text(doc.splitTextToSize(uniqueFamily.map((a, idx) => `${idx + 1}) ${a}`).join(' '), 180), 14, y + 60);
+  }
+
+  doc.save(`reporte_docente_por_curso_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 courseEl.addEventListener('change', () => {
   updateLanguageByCourse();
   renderLikert();
@@ -637,6 +746,12 @@ document.getElementById('download-group-pdf').addEventListener('click', () => {
   if (data.length) makeGroupPdf(data);
 });
 
+document.getElementById('download-course-report-pdf').addEventListener('click', async () => {
+  const data = getFilteredRecords();
+  if (!data.length) return;
+  await makeCourseReportPdf(data);
+});
+
 document.getElementById('export-csv').addEventListener('click', () => {
   const data = getFilteredRecords();
   if (!data.length) return;
@@ -688,15 +803,25 @@ document.getElementById('download-all-individual-pdf').addEventListener('click',
 });
 
 tableBody.addEventListener('click', (event) => {
-  const btn = event.target.closest('.verify-template');
-  if (!btn) return;
-  const record = state.records.find((r) => r.id === btn.dataset.id);
-  if (!record) return;
-  state.currentTemplateRecord = record;
-  templateStudentEl.textContent = `${record.name} · ${record.course} · ${record.date}`;
-  templateUploadEl.value = '';
-  renderTemplateVerification(record);
-  templateDialog.showModal();
+  const verifyBtn = event.target.closest('.verify-template');
+  if (verifyBtn) {
+    const record = state.records.find((r) => r.id === verifyBtn.dataset.id);
+    if (!record) return;
+    state.currentTemplateRecord = record;
+    templateStudentEl.textContent = `${record.name} · ${record.course} · ${record.date}`;
+    templateUploadEl.value = '';
+    renderTemplateVerification(record);
+    templateDialog.showModal();
+    return;
+  }
+
+  const deleteBtn = event.target.closest('.delete-record');
+  if (deleteBtn) {
+    const record = state.records.find((r) => r.id === deleteBtn.dataset.id);
+    if (!record) return;
+    const ok = window.confirm(`¿Eliminar la encuesta de ${record.name} (${record.course})? Esta acción no se puede deshacer.`);
+    if (ok) deleteRecord(record.id);
+  }
 });
 
 document.getElementById('close-template-dialog').addEventListener('click', () => {
