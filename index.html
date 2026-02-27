@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plataforma de Evaluación Socioemocional</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Evaluación Socioemocional Escolar</h1>
+      <p>Marco teórico: Competencias emocionales de Rafael Bisquerra</p>
+    </header>
+
+    <main>
+      <section class="card">
+        <h2>Aplicación de encuesta</h2>
+        <form id="surveyForm">
+          <div class="grid two">
+            <label>
+              Nombre completo
+              <input type="text" id="studentName" required />
+            </label>
+            <label>
+              Edad
+              <input type="number" id="studentAge" min="6" max="21" required />
+            </label>
+          </div>
+
+          <div class="grid two">
+            <label>
+              Curso
+              <select id="studentCourse" required></select>
+            </label>
+            <label>
+              Fecha de aplicación
+              <input type="text" id="applicationDate" readonly />
+            </label>
+          </div>
+
+          <label class="checkbox">
+            <input type="checkbox" id="anonymize" />
+            Guardar de forma anonimizada (panel administrativo)
+          </label>
+
+          <div id="likertSections"></div>
+
+          <section class="subcard">
+            <h3>Preguntas abiertas</h3>
+            <label>
+              ¿Qué situación reciente te hizo sentir una emoción intensa? ¿Cómo la manejaste?
+              <textarea id="openQ1" rows="3" required></textarea>
+            </label>
+            <label>
+              ¿Qué te gustaría mejorar de ti en lo emocional?
+              <textarea id="openQ2" rows="3" required></textarea>
+            </label>
+            <label>
+              ¿Qué necesitas de tu curso o colegio para sentirte mejor?
+              <textarea id="openQ3" rows="3" required></textarea>
+            </label>
+          </section>
+
+          <button type="submit">Procesar evaluación</button>
+        </form>
+      </section>
+
+      <section id="results" class="card hidden">
+        <h2>Resultados individuales</h2>
+        <div id="interpretation"></div>
+        <div class="grid two charts">
+          <div>
+            <h3>Barras por dimensión</h3>
+            <canvas id="barChart"></canvas>
+          </div>
+          <div>
+            <h3>Radar individual</h3>
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+        <div id="recommendations"></div>
+        <div class="actions">
+          <button id="downloadIndividualPdf">Descargar reporte individual PDF</button>
+          <button id="exportChartsPng">Exportar gráficos PNG</button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Panel administrativo</h2>
+        <div class="grid three">
+          <label>
+            Filtro por curso
+            <select id="filterCourse">
+              <option value="">Todos</option>
+            </select>
+          </label>
+          <label>
+            Desde
+            <input type="date" id="filterFrom" />
+          </label>
+          <label>
+            Hasta
+            <input type="date" id="filterTo" />
+          </label>
+        </div>
+        <div class="actions">
+          <button id="applyFilters">Aplicar filtros</button>
+          <button id="clearFilters">Limpiar filtros</button>
+          <button id="exportCsv">Exportar CSV</button>
+          <button id="exportXlsx">Exportar Excel (.xlsx)</button>
+          <button id="downloadGroupPdf">Descargar reporte grupal PDF</button>
+        </div>
+        <div id="groupInsights"></div>
+        <canvas id="groupChart"></canvas>
+        <div class="table-wrap">
+          <table id="recordsTable">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Curso</th>
+                <th>Fecha</th>
+                <th>Promedio general</th>
+                <th>Nivel</th>
+                <th>Índice bienestar</th>
+                <th>Alerta</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Plataforma educativa de uso interno • Datos en almacenamiento local del navegador</small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
