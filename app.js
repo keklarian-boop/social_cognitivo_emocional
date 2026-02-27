@@ -56,7 +56,6 @@ const profileEl = document.getElementById('language-profile');
 const likertContainer = document.getElementById('likert-container');
 const summaryEl = document.getElementById('individual-summary');
 const groupSummaryEl = document.getElementById('group-summary');
-const courseComparisonEl = document.getElementById('course-comparison');
 const tableBody = document.querySelector('#records-table tbody');
 
 function boot() {
