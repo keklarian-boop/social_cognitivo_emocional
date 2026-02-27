@@ -134,6 +134,7 @@
               <th>Promedio general</th>
               <th>Nivel</th>
               <th>Alerta</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody></tbody>
@@ -143,6 +144,7 @@
           <button id="download-group-pdf">Descargar reporte grupal PDF</button>
           <button id="export-csv">Exportar CSV</button>
           <button id="export-xlsx">Exportar XLSX</button>
+          <button id="download-all-individual-pdf">Descargar individuales (1 PDF)</button>
         </div>
       </section>
     </main>
@@ -150,6 +152,21 @@
     <footer>
       <small>Escala Likert: 1 Nunca · 2 Casi nunca · 3 A veces · 4 Casi siempre · 5 Siempre</small>
     </footer>
+
+
+
+    <dialog id="template-dialog">
+      <div class="dialog-head">
+        <h3>Verificación de plantilla de respuestas</h3>
+        <button id="close-template-dialog" class="secondary">Cerrar</button>
+      </div>
+      <p id="template-student"></p>
+      <label>
+        Cargar plantilla/respuestas del estudiante (.json)
+        <input type="file" id="template-upload" accept="application/json" />
+      </label>
+      <div id="template-check"></div>
+    </dialog>
 
     <script src="app.js"></script>
   </body>

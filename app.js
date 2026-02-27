@@ -58,6 +58,10 @@ const summaryEl = document.getElementById('individual-summary');
 const groupSummaryEl = document.getElementById('group-summary');
 const courseComparisonEl = document.getElementById('course-comparison');
 const tableBody = document.querySelector('#records-table tbody');
+const templateDialog = document.getElementById('template-dialog');
+const templateStudentEl = document.getElementById('template-student');
+const templateCheckEl = document.getElementById('template-check');
+const templateUploadEl = document.getElementById('template-upload');
 
 function boot() {
   dateEl.value = new Date().toISOString().slice(0, 10);
@@ -77,10 +81,13 @@ function getLevelByCourse(course) {
   return 'media';
 }
 
+function getProfileKeyByCourse(course) {
+  const level = getLevelByCourse(course);
+  return level === 'basica-inicial' ? 'simple' : level === 'basica-media' ? 'intermedio' : 'reflexivo';
+}
+
 function updateLanguageByCourse() {
-  const level = getLevelByCourse(courseEl.value || courses[0]);
-  const value = level === 'basica-inicial' ? 'simple' : level === 'basica-media' ? 'intermedio' : 'reflexivo';
-  profileEl.value = value;
+  profileEl.value = getProfileKeyByCourse(courseEl.value || courses[0]);
 }
 
 function renderLikert() {
@@ -304,6 +311,142 @@ function getFilteredRecords() {
   });
 }
 
+
+function buildExpectedChecklist(profileKey) {
+  const profile = questionBank[profileKey] || questionBank.simple;
+  const checklist = [];
+  Object.entries(profile).forEach(([dimension, questions]) => {
+    questions.forEach((question, idx) => {
+      checklist.push({ key: `${dimension}-${idx}`, question });
+    });
+  });
+  return checklist;
+}
+
+function getRecordTemplate(record) {
+  const profileKey = record.profileKey || getProfileKeyByCourse(record.course);
+  const expected = buildExpectedChecklist(profileKey);
+  const likert = record.responseTemplate?.likert || {};
+  const openAnswers = record.openAnswers || [];
+  const answeredLikert = expected.filter((item) => Number(likert[item.key]) >= 1 && Number(likert[item.key]) <= 5).length;
+  const answeredOpen = openAnswers.filter((a) => String(a || '').trim().length > 0).length;
+  const total = expected.length + 3;
+  const answered = answeredLikert + answeredOpen;
+  return {
+    profileKey,
+    expected,
+    answeredLikert,
+    answeredOpen,
+    total,
+    answered,
+    percent: Math.round((answered / total) * 100),
+    missingLikert: expected.filter((item) => !(Number(likert[item.key]) >= 1 && Number(likert[item.key]) <= 5)),
+    missingOpen: ['open-1', 'open-2', 'open-3'].filter((_, i) => !String(openAnswers[i] || '').trim()),
+  };
+}
+
+function renderTemplateVerification(record, customTemplate = null) {
+  const base = getRecordTemplate(record);
+  let report = base;
+
+  if (customTemplate) {
+    const likert = customTemplate.likert || {};
+    const openAnswers = customTemplate.openAnswers || [customTemplate.open1 || '', customTemplate.open2 || '', customTemplate.open3 || ''];
+    const tempRecord = { ...record, responseTemplate: { likert }, openAnswers };
+    report = getRecordTemplate(tempRecord);
+  }
+
+  const missingLikertRows = report.missingLikert.map((m) => `<li class="check-miss">Falta: ${m.question}</li>`).join('') || '<li class="check-ok">Todas las respuestas Likert están completas.</li>';
+  const missingOpenRows = report.missingOpen.map((o) => `<li class="check-miss">Falta respuesta en ${o}</li>`).join('') || '<li class="check-ok">Las preguntas abiertas están completas.</li>';
+
+  templateCheckEl.innerHTML = `
+    <p><strong>Completitud:</strong> ${report.answered}/${report.total} (${report.percent}%)</p>
+    <h4>Likert</h4>
+    <ul>${missingLikertRows}</ul>
+    <h4>Abiertas</h4>
+    <ul>${missingOpenRows}</ul>
+  `;
+}
+
+function familySuggestions(record) {
+  const tips = [];
+  if (record.byDimension['Regulación emocional'].avg < 3) tips.push('En casa, practicar respiración de 3 minutos y conversación breve diaria sobre emociones.');
+  if (record.byDimension['Competencia social'].avg < 3) tips.push('Promover actividades colaborativas fuera de pantalla y modelar resolución pacífica de conflictos.');
+  if (record.byDimension['Conciencia emocional'].avg < 3) tips.push('Usar un registro emocional simple (qué sentí, por qué, cómo actué).');
+  if (record.byDimension['Vida y bienestar'].avg < 3) tips.push('Fortalecer rutinas de sueño, actividad física y tiempos de descanso familiar.');
+  if (!tips.length) tips.push('Mantener refuerzo positivo y espacios semanales de diálogo emocional en familia.');
+  return tips;
+}
+
+async function createRecordChartImage(record, type) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 420;
+  canvas.height = 280;
+  canvas.style.position = 'fixed';
+  canvas.style.left = '-9999px';
+  document.body.appendChild(canvas);
+  const labels = dimensions;
+  const values = labels.map((d) => record.byDimension[d].avg);
+
+  const chart = new Chart(canvas, {
+    type,
+    data: {
+      labels,
+      datasets: [{
+        label: type === 'bar' ? 'Promedio por dimensión' : 'Perfil individual',
+        data: values,
+        backgroundColor: type === 'bar' ? '#3b82f6' : 'rgba(16,185,129,0.2)',
+        borderColor: type === 'bar' ? '#2563eb' : '#10b981',
+      }],
+    },
+    options: type === 'bar' ? { animation: false, scales: { y: { min: 0, max: 5 } } } : { animation: false, scales: { r: { min: 0, max: 5 } } },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const img = chart.toBase64Image();
+  chart.destroy();
+  canvas.remove();
+  return img;
+}
+
+async function makeAllIndividualPdf(records) {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  for (let i = 0; i < records.length; i += 1) {
+    const record = records[i];
+    if (i > 0) doc.addPage();
+
+    doc.setFillColor(30, 64, 175);
+    doc.rect(0, 0, 210, 18, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(13);
+    doc.text(`Resultados individuales por curso - ${record.course}`, 14, 12);
+    doc.setTextColor(0, 0, 0);
+
+    doc.setFontSize(10);
+    doc.text(`Estudiante: ${record.name}`, 14, 25);
+    doc.text(`Fecha: ${record.date}`, 14, 31);
+    doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 37);
+
+    let y = 45;
+    dimensions.forEach((d) => {
+      doc.text(`${d}: ${record.byDimension[d].avg}`, 14, y);
+      y += 6;
+    });
+
+    const fam = familySuggestions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
+    doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 6);
+
+    const barImg = await createRecordChartImage(record, 'bar');
+    const radarImg = await createRecordChartImage(record, 'radar');
+    if (barImg) doc.addImage(barImg, 'PNG', 110, 20, 85, 55);
+    if (radarImg) doc.addImage(radarImg, 'PNG', 110, 82, 85, 55);
+  }
+
+  doc.save(`resultados_individuales_${new Date().toISOString().slice(0, 10)}.pdf`);
+}
+
 function renderAdmin() {
   const data = getFilteredRecords();
   if (!data.length) {
@@ -346,7 +489,7 @@ function renderAdmin() {
   tableBody.innerHTML = data.map((r) => {
     const alert = r.generalAvg <= 2.4 ? '⚠️ Crítico' : 'OK';
     const name = r.anonymize ? `Est-${r.id.slice(-4)}` : r.name;
-    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td></tr>`;
+    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td><td><button class="secondary verify-template" data-id="${r.id}">Verificar plantilla</button></td></tr>`;
   }).join('');
 }
 
@@ -443,12 +586,22 @@ form.addEventListener('submit', (e) => {
   const fd = new FormData(form);
   const likert = computeLikertResult(fd);
   const openAnswers = [fd.get('open-1') || document.getElementById('open-1').value, fd.get('open-2') || document.getElementById('open-2').value, fd.get('open-3') || document.getElementById('open-3').value];
+  const profileKey = getProfileKeyByCourse(courseEl.value);
+  const profileQuestions = questionBank[profileKey];
+  const likertResponses = {};
+  Object.entries(profileQuestions).forEach(([dimension, questions]) => {
+    questions.forEach((_, idx) => {
+      likertResponses[`${dimension}-${idx}`] = Number(fd.get(`${dimension}-${idx}`));
+    });
+  });
+
   const record = {
     id: crypto.randomUUID(),
     name: document.getElementById('name').value.trim(),
     age: Number(document.getElementById('age').value),
     course: courseEl.value,
     levelKey: getLevelByCourse(courseEl.value),
+    profileKey,
     date: dateEl.value,
     anonymize: document.getElementById('anonymize').checked,
     byDimension: likert.byDimension,
@@ -456,6 +609,7 @@ form.addEventListener('submit', (e) => {
     level: likert.level,
     openAnswers,
     openAnalysis: analyzeOpenAnswers(openAnswers),
+    responseTemplate: { likert: likertResponses },
   };
 
   record.recommendations = recommendations(record.byDimension);
@@ -524,6 +678,41 @@ document.getElementById('download-bars').addEventListener('click', () => {
   a.href = url;
   a.download = 'barras_dimensiones.png';
   a.click();
+});
+
+
+document.getElementById('download-all-individual-pdf').addEventListener('click', async () => {
+  const data = getFilteredRecords();
+  if (!data.length) return;
+  await makeAllIndividualPdf(data);
+});
+
+tableBody.addEventListener('click', (event) => {
+  const btn = event.target.closest('.verify-template');
+  if (!btn) return;
+  const record = state.records.find((r) => r.id === btn.dataset.id);
+  if (!record) return;
+  state.currentTemplateRecord = record;
+  templateStudentEl.textContent = `${record.name} · ${record.course} · ${record.date}`;
+  templateUploadEl.value = '';
+  renderTemplateVerification(record);
+  templateDialog.showModal();
+});
+
+document.getElementById('close-template-dialog').addEventListener('click', () => {
+  templateDialog.close();
+});
+
+templateUploadEl.addEventListener('change', async (event) => {
+  const file = event.target.files?.[0];
+  if (!file || !state.currentTemplateRecord) return;
+  try {
+    const raw = await file.text();
+    const parsed = JSON.parse(raw);
+    renderTemplateVerification(state.currentTemplateRecord, parsed);
+  } catch (error) {
+    templateCheckEl.innerHTML = '<p class="check-miss">No se pudo leer la plantilla. Use un archivo JSON válido.</p>';
+  }
 });
 
 boot();
