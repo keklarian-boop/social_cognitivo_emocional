@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Plataforma de Evaluación Socioemocional</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  </head>
+  <body>
+    <header>
+      <h1>Evaluación Socioemocional Escolar</h1>
+      <p>Marco de competencias emocionales de Rafael Bisquerra</p>
+    </header>
+
+    <main>
+      <section class="card" id="survey-section">
+        <h2>1) Aplicación de encuesta</h2>
+        <form id="survey-form">
+          <div class="grid">
+            <label>
+              Nombre completo
+              <input required id="name" type="text" placeholder="Nombre y apellido" />
+            </label>
+            <label>
+              Edad
+              <input required id="age" type="number" min="5" max="22" />
+            </label>
+            <label>
+              Curso
+              <select required id="course"></select>
+            </label>
+            <label>
+              Fecha de aplicación
+              <input id="date" type="date" disabled />
+            </label>
+          </div>
+
+          <div class="toolbar">
+            <label>
+              Tipo de lenguaje
+              <select id="language-profile" disabled>
+                <option value="simple">Simple (1° a 4° básico)</option>
+                <option value="intermedio">Intermedio (5° a 8° básico)</option>
+                <option value="reflexivo">Reflexivo (1° a 4° medio)</option>
+              </select>
+            </label>
+            <label class="check-inline">
+              <input type="checkbox" id="anonymize" />
+              Anonimizar identificación en reportes grupales
+            </label>
+          </div>
+
+          <div id="likert-container"></div>
+
+          <h3>Preguntas abiertas</h3>
+          <label>
+            ¿Qué situación reciente te hizo sentir una emoción intensa? ¿Cómo la manejaste?
+            <textarea required id="open-1" rows="3"></textarea>
+          </label>
+          <label>
+            ¿Qué te gustaría mejorar de ti en lo emocional?
+            <textarea required id="open-2" rows="3"></textarea>
+          </label>
+          <label>
+            ¿Qué necesitas de tu curso o colegio para sentirte mejor?
+            <textarea required id="open-3" rows="3"></textarea>
+          </label>
+
+          <button type="submit">Guardar evaluación</button>
+        </form>
+      </section>
+
+      <section class="card" id="results-section">
+        <h2>2) Resultado individual</h2>
+        <div id="individual-summary"></div>
+        <div class="charts two-cols">
+          <canvas id="bar-chart"></canvas>
+          <canvas id="radar-chart"></canvas>
+        </div>
+        <div class="actions">
+          <button id="download-individual-pdf" disabled>Descargar reporte individual PDF</button>
+          <button id="download-radar" disabled>Exportar radar PNG</button>
+          <button id="download-bars" disabled>Exportar barras PNG</button>
+        </div>
+      </section>
+
+      <section class="card" id="admin-panel">
+        <h2>3) Panel administrativo</h2>
+        <div class="grid">
+          <label>
+            Filtrar por curso
+            <select id="filter-course"><option value="all">Todos</option></select>
+          </label>
+          <label>
+            Desde
+            <input type="date" id="filter-from" />
+          </label>
+          <label>
+            Hasta
+            <input type="date" id="filter-to" />
+          </label>
+          <label>
+            Nivel educativo
+            <select id="filter-level">
+              <option value="all">Todos</option>
+              <option value="basica-inicial">1°-4° básico</option>
+              <option value="basica-media">5°-8° básico</option>
+              <option value="media">1°-4° medio</option>
+            </select>
+          </label>
+        </div>
+
+        <div id="group-summary"></div>
+        <table id="records-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Nombre</th>
+              <th>Curso</th>
+              <th>Promedio general</th>
+              <th>Nivel</th>
+              <th>Alerta</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+
+        <div class="actions">
+          <button id="download-group-pdf">Descargar reporte grupal PDF</button>
+          <button id="export-csv">Exportar CSV</button>
+          <button id="export-xlsx">Exportar XLSX</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <small>Escala Likert: 1 Nunca · 2 Casi nunca · 3 A veces · 4 Casi siempre · 5 Siempre</small>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>
