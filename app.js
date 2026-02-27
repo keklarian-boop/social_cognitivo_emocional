@@ -199,6 +199,39 @@ function longitudinalInsight(record) {
   return `Comparación longitudinal (medición previa): ${trend} de ${delta} puntos.`;
 }
 
+function intraSubjectComparison(record) {
+  const previous = state.records
+    .filter((r) => r.name === record.name && r.course === record.course)
+    .sort((a, b) => a.date.localeCompare(b.date));
+
+  if (!previous.length) return { text: 'Sin medición previa para comparación intra sujeto.', deltas: null };
+  const prior = previous[previous.length - 1];
+  const deltas = Object.fromEntries(dimensions.map((d) => [d, Number((record.byDimension[d].avg - prior.byDimension[d].avg).toFixed(2))]));
+  const text = dimensions.map((d) => `${d}: ${deltas[d] >= 0 ? '+' : ''}${deltas[d]}`).join(' · ');
+  return { text: `Cambios por dimensión vs medición previa: ${text}.`, deltas };
+}
+
+function courseBenchmark(record) {
+  const peers = state.records.filter((r) => r.course === record.course);
+  if (!peers.length) return { text: 'Sin histórico del curso para comparar.', gap: null };
+  const courseAvg = Number((peers.reduce((sum, r) => sum + r.generalAvg, 0) / peers.length).toFixed(2));
+  const gap = Number((record.generalAvg - courseAvg).toFixed(2));
+  const dir = gap > 0 ? 'sobre' : gap < 0 ? 'bajo' : 'en';
+  return { text: `Comparación por curso: ${Math.abs(gap)} puntos ${dir} del promedio del ${record.course} (${courseAvg}).`, gap, courseAvg };
+}
+
+function healthReferral(record) {
+  const criticalDimensions = Object.entries(record.byDimension).filter(([, data]) => data.avg <= 2.4).map(([d]) => d);
+  if (record.generalAvg > 2.4 && !criticalDimensions.length) return null;
+  return {
+    needed: true,
+    reason: criticalDimensions.length
+      ? `Puntajes críticos en: ${criticalDimensions.join(', ')}.`
+      : 'Promedio general en rango crítico.',
+    plan: 'Derivación sugerida a dupla psicosocial escolar y coordinación con red de salud (APS/CESFAM o salud mental infanto-juvenil), con contacto a apoderado y plan de seguimiento de 4 a 6 semanas.',
+  };
+}
+
 function renderIndividual(record) {
   const interpret = interpretation(record.generalAvg);
   const wellbeingIndex = Math.round(record.generalAvg * 20);
@@ -222,6 +255,9 @@ function renderIndividual(record) {
     <p><strong>Síntesis cualitativa:</strong> ${record.openAnalysis.synthesis}</p>
     <p><strong>Proyección automática:</strong> ${record.recommendations.join(' ')}</p>
     <p><strong>Longitudinal:</strong> ${record.longitudinal}</p>
+    <p><strong>Comparación intra sujeto:</strong> ${record.intraSubject.text}</p>
+    <p><strong>Comparación por curso:</strong> ${record.courseBenchmark.text}</p>
+    <p><strong>Derivación a salud:</strong> ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}</p>
   `;
 
   drawCharts(record);
@@ -271,6 +307,7 @@ function renderAdmin() {
   const data = getFilteredRecords();
   if (!data.length) {
     groupSummaryEl.innerHTML = '<p>Sin registros para los filtros seleccionados.</p>';
+    courseComparisonEl.innerHTML = '';
     tableBody.innerHTML = '';
     return;
   }
@@ -289,6 +326,21 @@ function renderAdmin() {
       <div><strong>Dimensión más descendida:</strong><br>${weakest[0]} (${weakest[1]})</div>
       <div><strong>Recomendación de intervención:</strong><br>Plan focalizado en ${weakest[0]} con actividades socioemocionales semanales.</div>
     </div>`;
+
+  const byCourse = {};
+  data.forEach((r) => {
+    byCourse[r.course] = byCourse[r.course] || [];
+    byCourse[r.course].push(r.generalAvg);
+  });
+  const courseRows = Object.entries(byCourse)
+    .map(([course, vals]) => ({ course, avg: Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2)), n: vals.length }))
+    .sort((a, b) => b.avg - a.avg);
+  courseComparisonEl.innerHTML = `
+    <h3>Comparación por cursos</h3>
+    <table>
+      <thead><tr><th>Curso</th><th>Promedio general</th><th>N</th></tr></thead>
+      <tbody>${courseRows.map((r) => `<tr><td>${r.course}</td><td>${r.avg}</td><td>${r.n}</td></tr>`).join('')}</tbody>
+    </table>`;
 
   tableBody.innerHTML = data.map((r) => {
     const alert = r.generalAvg <= 2.4 ? '⚠️ Crítico' : 'OK';
@@ -314,37 +366,65 @@ function downloadBlob(content, filename, type) {
 function makeIndividualPdf(record) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFontSize(14);
-  doc.text('Reporte Individual Socioemocional', 14, 15);
+  doc.setFillColor(36, 72, 168);
+  doc.rect(0, 0, 210, 22, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.text('Reporte Individual Socioemocional', 14, 14);
+  doc.setTextColor(20, 20, 20);
   doc.setFontSize(10);
-  doc.text(`Estudiante: ${record.name} | Curso: ${record.course} | Fecha: ${record.date}`, 14, 24);
-  doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 32);
-  let y = 40;
+  doc.text(`Estudiante: ${record.name} | Curso: ${record.course} | Fecha: ${record.date}`, 14, 30);
+  doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 36);
+  let y = 44;
   dimensions.forEach((d) => {
     doc.text(`${d}: ${record.byDimension[d].avg} (DE ${record.byDimension[d].std})`, 14, y);
     y += 7;
   });
-  doc.text(`Síntesis cualitativa: ${record.openAnalysis.synthesis}`.slice(0, 180), 14, y + 4);
-  doc.text(`Proyección: ${record.recommendations.join(' ')}`.slice(0, 180), 14, y + 12);
+  doc.text(doc.splitTextToSize(`Síntesis cualitativa: ${record.openAnalysis.synthesis}`, 180), 14, y + 4);
+  doc.text(doc.splitTextToSize(`Proyección: ${record.recommendations.join(' ')}`, 180), 14, y + 16);
+  doc.text(doc.splitTextToSize(`Comparación intra sujeto: ${record.intraSubject.text}`, 180), 14, y + 28);
+  doc.text(doc.splitTextToSize(`Comparación por curso: ${record.courseBenchmark.text}`, 180), 14, y + 40);
+  doc.text(doc.splitTextToSize(`Derivación de salud: ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}`, 180), 14, y + 52);
+
+  const radarImg = state.charts.radar?.toBase64Image();
+  if (radarImg) doc.addImage(radarImg, 'PNG', 130, 18, 65, 65);
   doc.save(`reporte_individual_${record.id}.pdf`);
 }
 
 function makeGroupPdf(records) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFontSize(14);
-  doc.text('Reporte Grupal Socioemocional', 14, 15);
+  doc.setFillColor(15, 23, 42);
+  doc.rect(0, 0, 210, 22, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.text('Reporte Grupal Socioemocional', 14, 14);
+  doc.setTextColor(20, 20, 20);
   doc.setFontSize(10);
-  doc.text(`Total evaluaciones: ${records.length}`, 14, 24);
+  doc.text(`Total evaluaciones: ${records.length}`, 14, 30);
   const avg = Number((records.reduce((a, r) => a + r.generalAvg, 0) / records.length).toFixed(2));
-  doc.text(`Promedio general grupal: ${avg}`, 14, 31);
+  doc.text(`Promedio general grupal: ${avg}`, 14, 37);
   const dimMeans = dimensions.map((d) => Number((records.reduce((a, r) => a + r.byDimension[d].avg, 0) / records.length).toFixed(2)));
-  let y = 40;
+  let y = 46;
   dimensions.forEach((d, i) => {
     doc.text(`${d}: ${dimMeans[i]}`, 14, y);
     y += 7;
   });
-  doc.text('Recomendación: focalizar intervención en dimensión de menor promedio y seguimiento mensual.', 14, y + 8);
+  const byCourse = {};
+  records.forEach((r) => {
+    byCourse[r.course] = byCourse[r.course] || [];
+    byCourse[r.course].push(r.generalAvg);
+  });
+  const courseLines = Object.entries(byCourse)
+    .map(([course, vals]) => `${course}: ${Number((vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(2))} (n=${vals.length})`)
+    .join(' · ');
+  doc.text(doc.splitTextToSize(`Comparación por cursos: ${courseLines}`, 180), 14, y + 8);
+
+  const criticalCases = records.filter((r) => r.generalAvg <= 2.4).length;
+  doc.text(doc.splitTextToSize(`Casos críticos detectados: ${criticalCases}. Acción sugerida: activar protocolo de derivación a salud y seguimiento con dupla psicosocial.`, 180), 14, y + 22);
+
+  const barImg = state.charts.bar?.toBase64Image();
+  if (barImg) doc.addImage(barImg, 'PNG', 120, 20, 75, 55);
   doc.save(`reporte_grupal_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -379,6 +459,9 @@ form.addEventListener('submit', (e) => {
 
   record.recommendations = recommendations(record.byDimension);
   record.longitudinal = longitudinalInsight(record);
+  record.intraSubject = intraSubjectComparison(record);
+  record.courseBenchmark = courseBenchmark(record);
+  record.healthReferral = healthReferral(record);
 
   saveRecord(record);
   state.currentRecord = record;
