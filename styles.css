@@ -174,12 +174,36 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
   border-radius: 8px;
   padding: 0.6rem;
 }
+
+.immediate-charts {
+  display: grid;
+  gap: 0.9rem;
+  grid-template-columns: 1fr;
+}
+.chart-card {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.65rem;
+  background: #fcfdff;
+}
+.chart-card h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.95rem;
+}
+#bar-chart,
+#radar-chart {
+  width: 100% !important;
+  height: 260px !important;
+}
+
 @media (max-width: 720px) {
   .likert-row { grid-template-columns: 1fr; }
   .header-top { align-items: flex-start; }
   .header-logo { width: 62px; height: 62px; }
   .header-top h1 { font-size: 1.2rem; }
   .header-top p { font-size: 0.85rem; }
+  #bar-chart,
+  #radar-chart { height: 220px !important; }
 }
 
 
