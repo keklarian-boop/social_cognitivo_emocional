@@ -47,6 +47,12 @@ const state = {
   records: JSON.parse(localStorage.getItem('seRecords') || '[]'),
   currentRecord: null,
   charts: { bar: null, radar: null },
+  actionPlan: {
+    homeActivity: '',
+    teacherActivity: '',
+    familySignature: '',
+    teacherSignature: '',
+  },
 };
 
 const form = document.getElementById('survey-form');
@@ -62,6 +68,10 @@ const templateDialog = document.getElementById('template-dialog');
 const templateStudentEl = document.getElementById('template-student');
 const templateCheckEl = document.getElementById('template-check');
 const templateUploadEl = document.getElementById('template-upload');
+const homeActivitySelectEl = document.getElementById('home-activity-select');
+const teacherActivitySelectEl = document.getElementById('teacher-activity-select');
+const familySignatureNameEl = document.getElementById('family-signature-name');
+const teacherSignatureNameEl = document.getElementById('teacher-signature-name');
 
 function boot() {
   dateEl.value = new Date().toISOString().slice(0, 10);
@@ -71,6 +81,8 @@ function boot() {
   });
   updateLanguageByCourse();
   renderLikert();
+  state.actionPlan.homeActivity = homeActivitySelectEl.value;
+  state.actionPlan.teacherActivity = teacherActivitySelectEl.value;
   renderAdmin();
 }
 
@@ -282,6 +294,22 @@ function healthReferral(record) {
   };
 }
 
+function getActionPlanValues() {
+  return {
+    homeActivity: homeActivitySelectEl.value,
+    teacherActivity: teacherActivitySelectEl.value,
+    familySignature: familySignatureNameEl.value.trim(),
+    teacherSignature: teacherSignatureNameEl.value.trim(),
+  };
+}
+
+function signedCommitmentText(record) {
+  const plan = record.actionPlan || state.actionPlan;
+  const familySigner = plan.familySignature || '________________';
+  const teacherSigner = plan.teacherSignature || '________________';
+  return `Compromisos firmados: Familia (${familySigner}) se compromete a ejecutar: ${plan.homeActivity}. Docente (${teacherSigner}) se compromete a ejecutar: ${plan.teacherActivity}. Fecha de compromiso: ${record.date}.`;
+}
+
 function renderIndividual(record) {
   const interpret = interpretation(record.generalAvg);
   const wellbeingIndex = Math.round(record.generalAvg * 20);
@@ -310,6 +338,9 @@ function renderIndividual(record) {
     <p><strong>Derivación a salud:</strong> ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}</p>
     <p><strong>Orientaciones familiares:</strong> ${familyGuidanceDetailed(record).join(' ')}</p>
     <p><strong>Acciones preventivas para docentes:</strong> ${teacherPreventiveActions(record).join(' ')}</p>
+    <p><strong>Actividad prioritaria hogar:</strong> ${record.actionPlan?.homeActivity || state.actionPlan.homeActivity}</p>
+    <p><strong>Actividad desarrollo docente:</strong> ${record.actionPlan?.teacherActivity || state.actionPlan.teacherActivity}</p>
+    <p><strong>Compromiso firmado:</strong> ${signedCommitmentText(record)}</p>
   `;
 
   drawCharts(record);
@@ -492,6 +523,7 @@ async function makeAllIndividualPdf(records) {
     const teacher = teacherPreventiveActions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
     doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 6);
     doc.text(doc.splitTextToSize(`Acciones preventivas para docentes: ${teacher}`, 180), 14, y + 28);
+    doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 48);
 
     const barImg = await createRecordChartImage(record, 'bar');
     const radarImg = await createRecordChartImage(record, 'radar');
@@ -584,6 +616,9 @@ function makeIndividualPdf(record) {
   doc.text(doc.splitTextToSize(`Comparación intra sujeto: ${record.intraSubject.text}`, 180), 14, y + 28);
   doc.text(doc.splitTextToSize(`Comparación por curso: ${record.courseBenchmark.text}`, 180), 14, y + 40);
   doc.text(doc.splitTextToSize(`Derivación de salud: ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}`, 180), 14, y + 52);
+  const famExtended = familyGuidanceDetailed(record).map((g, i) => `${i + 1}) ${g}`).join(' ');
+  doc.text(doc.splitTextToSize(`Acciones en casa (apoderados/familia): ${famExtended}`, 180), 14, y + 64);
+  doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 82);
 
   const radarImg = state.charts.radar?.toBase64Image();
   if (radarImg) doc.addImage(radarImg, 'PNG', 130, 18, 65, 65);
@@ -676,6 +711,10 @@ async function makeCourseReportPdf(records) {
     const uniqueFamily = [...new Set(familyLines)].slice(0, 5);
     doc.text('Orientaciones para coordinación con familias:', 14, y + 54);
     doc.text(doc.splitTextToSize(uniqueFamily.map((a, idx) => `${idx + 1}) ${a}`).join(' '), 180), 14, y + 60);
+
+    const commitments = rows.map((r) => `- ${r.name}: ${signedCommitmentText(r)}`).join(' ');
+    doc.text('Compromisos firmados registrados:', 14, y + 92);
+    doc.text(doc.splitTextToSize(commitments || 'Sin compromisos registrados.', 180), 14, y + 98);
   }
 
   doc.save(`reporte_docente_por_curso_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -704,6 +743,8 @@ form.addEventListener('submit', (e) => {
     });
   });
 
+  state.actionPlan = getActionPlanValues();
+
   const record = {
     id: crypto.randomUUID(),
     name: document.getElementById('name').value.trim(),
@@ -719,6 +760,7 @@ form.addEventListener('submit', (e) => {
     openAnswers,
     openAnalysis: analyzeOpenAnswers(openAnswers),
     responseTemplate: { likert: likertResponses },
+    actionPlan: { ...state.actionPlan },
   };
 
   record.recommendations = recommendations(record.byDimension);
@@ -838,6 +880,12 @@ templateUploadEl.addEventListener('change', async (event) => {
   } catch (error) {
     templateCheckEl.innerHTML = '<p class="check-miss">No se pudo leer la plantilla. Use un archivo JSON válido.</p>';
   }
+});
+
+[homeActivitySelectEl, teacherActivitySelectEl, familySignatureNameEl, teacherSignatureNameEl].forEach((el) => {
+  el.addEventListener('change', () => {
+    state.actionPlan = getActionPlanValues();
+  });
 });
 
 boot();

@@ -90,6 +90,42 @@
           <canvas id="bar-chart"></canvas>
           <canvas id="radar-chart"></canvas>
         </div>
+
+        <div class="card" id="action-plan-card">
+          <h3>Plan de acción familia-docentes</h3>
+          <div class="grid">
+            <label>
+              Actividad prioritaria para el hogar
+              <select id="home-activity-select">
+                <option value="Rutina emocional diaria (10 min): identificar emoción, validar y regular con respiración">Rutina emocional diaria (10 min)</option>
+                <option value="Bitácora emocional 3 veces por semana con revisión familiar">Bitácora emocional 3 veces por semana</option>
+                <option value="Acuerdos de convivencia familiar y seguimiento de cumplimiento semanal">Acuerdos de convivencia familiar</option>
+                <option value="Rutina de sueño e higiene digital (sin pantallas 60 min antes de dormir)">Rutina de sueño e higiene digital</option>
+                <option value="Actividad física conjunta de 20-30 minutos, al menos 4 días por semana">Actividad física conjunta</option>
+              </select>
+            </label>
+            <label>
+              Actividad para desarrollo de habilidades docentes
+              <select id="teacher-activity-select">
+                <option value="Semáforo emocional de inicio de clase + registro de estado">Semáforo emocional al inicio de clase</option>
+                <option value="Círculos restaurativos quincenales y seguimiento de acuerdos">Círculos restaurativos quincenales</option>
+                <option value="Role-playing socioemocional 2 veces por semana">Role-playing socioemocional</option>
+                <option value="Mediación guiada con protocolo en 5 pasos">Mediación guiada en 5 pasos</option>
+                <option value="Tutoría focalizada con metas SMART y retroalimentación semanal">Tutoría con metas SMART</option>
+              </select>
+            </label>
+            <label>
+              Compromiso firmado por apoderado/familia
+              <input id="family-signature-name" type="text" placeholder="Nombre apoderado/a" />
+            </label>
+            <label>
+              Compromiso firmado por docente
+              <input id="teacher-signature-name" type="text" placeholder="Nombre docente" />
+            </label>
+          </div>
+          <p class="small-note">Estos acuerdos se incorporarán en reportes individuales para seguimiento.</p>
+        </div>
+
         <div class="actions">
           <button id="download-individual-pdf" disabled>Descargar reporte individual PDF</button>
           <button id="download-radar" disabled>Exportar radar PNG</button>

@@ -213,3 +213,15 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 }
 .check-ok { color: #166534; }
 .check-miss { color: #b91c1c; }
+
+
+#action-plan-card {
+  margin-top: 1rem;
+  border: 1px dashed #bfdbfe;
+  background: #f8fbff;
+}
+.small-note {
+  font-size: 0.85rem;
+  color: #334155;
+  margin-top: 0.45rem;
+}
