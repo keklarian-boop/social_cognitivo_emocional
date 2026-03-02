@@ -357,13 +357,13 @@ function drawCharts(record) {
   state.charts.bar = new Chart(document.getElementById('bar-chart'), {
     type: 'bar',
     data: { labels, datasets: [{ label: 'Promedio por dimensión', data: values, backgroundColor: '#3b82f6' }] },
-    options: { scales: { y: { min: 0, max: 5 } } },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { y: { min: 0, max: 5, ticks: { stepSize: 1 } } } },
   });
 
   state.charts.radar = new Chart(document.getElementById('radar-chart'), {
     type: 'radar',
     data: { labels, datasets: [{ label: 'Perfil individual', data: values, backgroundColor: 'rgba(16,185,129,0.2)', borderColor: '#10b981' }] },
-    options: { scales: { r: { min: 0, max: 5 } } },
+    options: { maintainAspectRatio: false, plugins: { legend: { display: true } }, scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 } } } },
   });
 }
 
@@ -501,19 +501,14 @@ async function makeAllIndividualPdf(records) {
     const record = records[i];
     if (i > 0) doc.addPage();
 
-    doc.setFillColor(30, 64, 175);
-    doc.rect(0, 0, 210, 18, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(13);
-    doc.text(`Resultados individuales por curso - ${record.course}`, 14, 12);
-    doc.setTextColor(0, 0, 0);
+    await addReportHeader(doc, `Resultados individuales por curso - ${record.course}`, [30, 64, 175]);
 
     doc.setFontSize(10);
-    doc.text(`Estudiante: ${record.name}`, 14, 25);
-    doc.text(`Fecha: ${record.date}`, 14, 31);
-    doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 37);
+    doc.text(`Estudiante: ${record.name}`, 14, 33);
+    doc.text(`Fecha: ${record.date} | Curso: ${record.course}`, 14, 39);
+    doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 45);
 
-    let y = 45;
+    let y = 52;
     dimensions.forEach((d) => {
       doc.text(`${d}: ${record.byDimension[d].avg}`, 14, y);
       y += 6;
@@ -521,14 +516,15 @@ async function makeAllIndividualPdf(records) {
 
     const fam = familySuggestions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
     const teacher = teacherPreventiveActions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
-    doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 6);
-    doc.text(doc.splitTextToSize(`Acciones preventivas para docentes: ${teacher}`, 180), 14, y + 28);
-    doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 48);
+    doc.text(doc.splitTextToSize(`Resultados cualitativos y estrategias: ${record.openAnalysis.synthesis} ${record.recommendations.join(' ')}`, 180), 14, y + 6);
+    doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 24);
+    doc.text(doc.splitTextToSize(`Acciones preventivas para docentes: ${teacher}`, 180), 14, y + 42);
+    doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 58);
 
     const barImg = await createRecordChartImage(record, 'bar');
     const radarImg = await createRecordChartImage(record, 'radar');
-    if (barImg) doc.addImage(barImg, 'PNG', 110, 20, 85, 55);
-    if (radarImg) doc.addImage(radarImg, 'PNG', 110, 82, 85, 55);
+    if (barImg) doc.addImage(barImg, 'PNG', 14, y + 74, 182, 52);
+    if (radarImg) doc.addImage(radarImg, 'PNG', 14, y + 130, 182, 52);
   }
 
   doc.save(`resultados_individuales_${new Date().toISOString().slice(0, 10)}.pdf`);
@@ -594,46 +590,83 @@ function downloadBlob(content, filename, type) {
   link.click();
 }
 
-function makeIndividualPdf(record) {
+async function getLogoPngData() {
+  if (state.logoPngData) return state.logoPngData;
+  try {
+    const response = await fetch('logo.svg');
+    const svgText = await response.text();
+    const blob = new Blob([svgText], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = reject;
+      img.src = url;
+    });
+    const canvas = document.createElement('canvas');
+    canvas.width = 220;
+    canvas.height = 220;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(img, 0, 0, 220, 220);
+    URL.revokeObjectURL(url);
+    state.logoPngData = canvas.toDataURL('image/png');
+    return state.logoPngData;
+  } catch (error) {
+    return null;
+  }
+}
+
+async function addReportHeader(doc, title, fillColor = [36, 72, 168]) {
+  const logoPng = await getLogoPngData();
+  doc.setFillColor(...fillColor);
+  doc.rect(0, 0, 210, 24, 'F');
+  if (logoPng) doc.addImage(logoPng, 'PNG', 6, 3, 18, 18);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(14);
+  doc.text(title, 28, 14);
+  doc.setTextColor(20, 20, 20);
+}
+
+async function makeIndividualPdf(record) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(36, 72, 168);
-  doc.rect(0, 0, 210, 22, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(15);
-  doc.text('Reporte Individual Socioemocional', 14, 14);
-  doc.setTextColor(20, 20, 20);
+  await addReportHeader(doc, 'Reporte Individual Socioemocional', [36, 72, 168]);
+
   doc.setFontSize(10);
-  doc.text(`Estudiante: ${record.name} | Curso: ${record.course} | Fecha: ${record.date}`, 14, 30);
-  doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 36);
-  let y = 44;
+  doc.text(`Estudiante: ${record.name}`, 14, 34);
+  doc.text(`Edad: ${record.age} | Curso: ${record.course} | Fecha: ${record.date}`, 14, 40);
+  doc.text(`Promedio general: ${record.generalAvg} (${record.level.text})`, 14, 46);
+
+  let y = 54;
+  doc.setFontSize(11);
+  doc.text('Resultados cuantitativos', 14, y);
+  y += 6;
+  doc.setFontSize(10);
   dimensions.forEach((d) => {
     doc.text(`${d}: ${record.byDimension[d].avg} (DE ${record.byDimension[d].std})`, 14, y);
-    y += 7;
+    y += 6;
   });
-  doc.text(doc.splitTextToSize(`Síntesis cualitativa: ${record.openAnalysis.synthesis}`, 180), 14, y + 4);
-  doc.text(doc.splitTextToSize(`Proyección: ${record.recommendations.join(' ')}`, 180), 14, y + 16);
-  doc.text(doc.splitTextToSize(`Comparación intra sujeto: ${record.intraSubject.text}`, 180), 14, y + 28);
-  doc.text(doc.splitTextToSize(`Comparación por curso: ${record.courseBenchmark.text}`, 180), 14, y + 40);
-  doc.text(doc.splitTextToSize(`Derivación de salud: ${record.healthReferral ? `${record.healthReferral.reason} ${record.healthReferral.plan}` : 'No requerida actualmente.'}`, 180), 14, y + 52);
-  const famExtended = familyGuidanceDetailed(record).map((g, i) => `${i + 1}) ${g}`).join(' ');
-  doc.text(doc.splitTextToSize(`Acciones en casa (apoderados/familia): ${famExtended}`, 180), 14, y + 64);
-  doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 82);
 
+  doc.text(doc.splitTextToSize(`Resultados cualitativos: ${record.openAnalysis.synthesis}`, 182), 14, y + 2);
+  doc.text(doc.splitTextToSize(`Estrategias sugeridas: ${record.recommendations.join(' ')}`, 182), 14, y + 16);
+  doc.text(doc.splitTextToSize(`Acciones en casa: ${familyGuidanceDetailed(record).join(' ')}`, 182), 14, y + 30);
+  doc.text(doc.splitTextToSize(`Acciones docentes: ${teacherPreventiveActions(record).join(' ')}`, 182), 14, y + 44);
+  doc.text(doc.splitTextToSize(`Compromiso firmado: ${signedCommitmentText(record)}`, 182), 14, y + 58);
+
+  const barImg = state.charts.bar?.toBase64Image();
   const radarImg = state.charts.radar?.toBase64Image();
-  if (radarImg) doc.addImage(radarImg, 'PNG', 130, 18, 65, 65);
+  doc.setFontSize(11);
+  doc.text('Gráficos (orden del reporte inmediato)', 14, y + 74);
+  if (barImg) doc.addImage(barImg, 'PNG', 14, y + 78, 182, 54);
+  if (radarImg) doc.addImage(radarImg, 'PNG', 14, y + 136, 182, 54);
+
   doc.save(`reporte_individual_${record.id}.pdf`);
 }
 
-function makeGroupPdf(records) {
+async function makeGroupPdf(records) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, 210, 22, 'F');
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(15);
-  doc.text('Reporte Grupal Socioemocional', 14, 14);
-  doc.setTextColor(20, 20, 20);
+  await addReportHeader(doc, 'Reporte Grupal Socioemocional', [15, 23, 42]);
   doc.setFontSize(10);
   doc.text(`Total evaluaciones: ${records.length}`, 14, 30);
   const avg = Number((records.reduce((a, r) => a + r.generalAvg, 0) / records.length).toFixed(2));
@@ -677,12 +710,7 @@ async function makeCourseReportPdf(records) {
     const rows = grouped[course];
     if (i > 0) doc.addPage();
 
-    doc.setFillColor(17, 24, 39);
-    doc.rect(0, 0, 210, 20, 'F');
-    doc.setTextColor(255, 255, 255);
-    doc.setFontSize(14);
-    doc.text(`Reporte por curso para docentes: ${course}`, 14, 13);
-    doc.setTextColor(15, 23, 42);
+    await addReportHeader(doc, `Reporte por curso para docentes: ${course}`, [17, 24, 39]);
 
     const avgGeneral = Number((rows.reduce((a, r) => a + r.generalAvg, 0) / rows.length).toFixed(2));
     doc.setFontSize(10);
@@ -779,13 +807,13 @@ form.addEventListener('submit', (e) => {
   renderLikert();
 });
 
-document.getElementById('download-individual-pdf').addEventListener('click', () => {
-  if (state.currentRecord) makeIndividualPdf(state.currentRecord);
+document.getElementById('download-individual-pdf').addEventListener('click', async () => {
+  if (state.currentRecord) await makeIndividualPdf(state.currentRecord);
 });
 
-document.getElementById('download-group-pdf').addEventListener('click', () => {
+document.getElementById('download-group-pdf').addEventListener('click', async () => {
   const data = getFilteredRecords();
-  if (data.length) makeGroupPdf(data);
+  if (data.length) await makeGroupPdf(data);
 });
 
 document.getElementById('download-course-report-pdf').addEventListener('click', async () => {
