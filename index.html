@@ -157,6 +157,30 @@
           <button id="admin-logout-btn" type="button" class="secondary" disabled>Cerrar sesión</button>
         </div>
         <p id="admin-auth-message" class="small-note"></p>
+
+        <div id="admin-user-management" class="card hidden-admin-content">
+          <h3>Gestión de usuarios administradores</h3>
+          <div class="grid">
+            <label>
+              Nuevo usuario
+              <input id="new-admin-username" type="text" placeholder="Ej: Nombre Apellido" />
+            </label>
+            <label>
+              Nueva contraseña
+              <input id="new-admin-password" type="password" placeholder="Defina contraseña" />
+            </label>
+          </div>
+          <div class="actions">
+            <button id="create-admin-user-btn" type="button">Crear usuario administrador</button>
+          </div>
+          <p id="admin-user-message" class="small-note"></p>
+          <table id="admin-users-table">
+            <thead>
+              <tr><th>Usuario</th><th>Rol</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
 
       <section class="card" id="admin-panel">

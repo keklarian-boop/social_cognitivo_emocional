@@ -54,6 +54,7 @@ const state = {
     teacherSignature: '',
   },
   adminAuthenticated: false,
+  adminUsers: [],
 };
 
 const form = document.getElementById('survey-form');
@@ -81,6 +82,61 @@ const adminPasswordEl = document.getElementById('admin-password');
 const adminLoginBtnEl = document.getElementById('admin-login-btn');
 const adminLogoutBtnEl = document.getElementById('admin-logout-btn');
 const adminAuthMessageEl = document.getElementById('admin-auth-message');
+const adminUserManagementEl = document.getElementById('admin-user-management');
+const newAdminUsernameEl = document.getElementById('new-admin-username');
+const newAdminPasswordEl = document.getElementById('new-admin-password');
+const createAdminUserBtnEl = document.getElementById('create-admin-user-btn');
+const adminUserMessageEl = document.getElementById('admin-user-message');
+const adminUsersTableBodyEl = document.querySelector('#admin-users-table tbody');
+
+
+function initAdminUsers() {
+  const storageUsers = JSON.parse(localStorage.getItem('seAdminUsers') || '[]');
+  if (storageUsers.length) {
+    state.adminUsers = storageUsers;
+    return;
+  }
+
+  state.adminUsers = [{ username: 'Ricardo Embry', password: 'PDV_123', role: 'Administrador' }];
+  localStorage.setItem('seAdminUsers', JSON.stringify(state.adminUsers));
+}
+
+function saveAdminUsers() {
+  localStorage.setItem('seAdminUsers', JSON.stringify(state.adminUsers));
+}
+
+function renderAdminUsers() {
+  if (!adminUsersTableBodyEl) return;
+  adminUsersTableBodyEl.innerHTML = state.adminUsers
+    .map((u) => `<tr><td>${u.username}</td><td>${u.role}</td></tr>`)
+    .join('');
+}
+
+function createAdminUser() {
+  if (!state.adminAuthenticated) return;
+  const username = newAdminUsernameEl.value.trim();
+  const password = newAdminPasswordEl.value;
+
+  if (!username || !password) {
+    adminUserMessageEl.textContent = 'Debe ingresar usuario y contraseña para crear el nuevo administrador.';
+    adminUserMessageEl.className = 'small-note auth-error';
+    return;
+  }
+
+  if (state.adminUsers.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+    adminUserMessageEl.textContent = 'El usuario ya existe. Use un nombre diferente.';
+    adminUserMessageEl.className = 'small-note auth-error';
+    return;
+  }
+
+  state.adminUsers.push({ username, password, role: 'Administrador' });
+  saveAdminUsers();
+  renderAdminUsers();
+  newAdminUsernameEl.value = '';
+  newAdminPasswordEl.value = '';
+  adminUserMessageEl.textContent = 'Usuario administrador creado correctamente.';
+  adminUserMessageEl.className = 'small-note auth-success';
+}
 
 function setAdminUIState() {
   const isAuth = state.adminAuthenticated;
@@ -88,15 +144,16 @@ function setAdminUIState() {
   adminLockedMessageEl.style.display = isAuth ? 'none' : 'block';
   adminContentEl.style.display = isAuth ? 'block' : 'none';
   adminLogoutBtnEl.disabled = !isAuth;
+  if (adminUserManagementEl) adminUserManagementEl.style.display = isAuth ? 'block' : 'none';
+  if (isAuth) renderAdminUsers();
 }
 
 function adminLogin() {
   const user = adminUsernameEl.value.trim();
   const pass = adminPasswordEl.value;
-  const validUser = 'admin';
-  const validPass = 'Convivencia2026!';
+  const foundUser = state.adminUsers.find((u) => u.username === user && u.password === pass);
 
-  if (user === validUser && pass === validPass) {
+  if (foundUser) {
     state.adminAuthenticated = true;
     adminAuthMessageEl.textContent = 'Acceso de administrador habilitado.';
     adminAuthMessageEl.className = 'small-note auth-success';
@@ -125,6 +182,7 @@ function boot() {
     courseEl.add(new Option(course, course));
     document.getElementById('filter-course').add(new Option(course, course));
   });
+  initAdminUsers();
   updateLanguageByCourse();
   renderLikert();
   state.actionPlan.homeActivity = homeActivitySelectEl.value;
@@ -982,6 +1040,7 @@ adminLogoutBtnEl.addEventListener('click', adminLogout);
 adminPasswordEl.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') adminLogin();
 });
+createAdminUserBtnEl.addEventListener('click', createAdminUser);
 
 [homeActivitySelectEl, teacherActivitySelectEl, familySignatureNameEl, teacherSignatureNameEl].forEach((el) => {
   el.addEventListener('change', () => {

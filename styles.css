@@ -262,3 +262,21 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
 }
 .auth-error { color: #b91c1c; }
 .auth-success { color: #166534; }
+
+
+#admin-user-management {
+  margin-top: 0.8rem;
+  border: 1px solid #dbeafe;
+}
+#admin-users-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+#admin-users-table th,
+#admin-users-table td {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 0.45rem;
+  text-align: left;
+  font-size: 0.88rem;
+}
