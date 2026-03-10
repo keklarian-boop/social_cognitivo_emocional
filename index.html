@@ -139,8 +139,30 @@
         </div>
       </section>
 
+
+      <section class="card" id="admin-access-section">
+        <h2>3) Acceso administrador</h2>
+        <div class="grid">
+          <label>
+            Usuario
+            <input id="admin-username" type="text" placeholder="Ingrese usuario" />
+          </label>
+          <label>
+            Contraseña
+            <input id="admin-password" type="password" placeholder="Ingrese contraseña" />
+          </label>
+        </div>
+        <div class="actions">
+          <button id="admin-login-btn" type="button">Ingresar</button>
+          <button id="admin-logout-btn" type="button" class="secondary" disabled>Cerrar sesión</button>
+        </div>
+        <p id="admin-auth-message" class="small-note"></p>
+      </section>
+
       <section class="card" id="admin-panel">
-        <h2>3) Panel administrativo</h2>
+        <h2>4) Panel administrativo</h2>
+        <p id="admin-locked-message" class="small-note">Debe iniciar sesión como administrador para ver y exportar datos sensibles.</p>
+        <div id="admin-content" class="hidden-admin-content">
         <div class="grid">
           <label>
             Filtrar por curso
@@ -188,6 +210,7 @@
           <button id="export-csv">Exportar CSV</button>
           <button id="export-xlsx">Exportar XLSX</button>
           <button id="download-all-individual-pdf">Descargar individuales (1 PDF)</button>
+        </div>
         </div>
       </section>
     </main>

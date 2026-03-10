@@ -53,6 +53,7 @@ const state = {
     familySignature: '',
     teacherSignature: '',
   },
+  adminAuthenticated: false,
 };
 
 const form = document.getElementById('survey-form');
@@ -72,6 +73,51 @@ const homeActivitySelectEl = document.getElementById('home-activity-select');
 const teacherActivitySelectEl = document.getElementById('teacher-activity-select');
 const familySignatureNameEl = document.getElementById('family-signature-name');
 const teacherSignatureNameEl = document.getElementById('teacher-signature-name');
+const adminPanelEl = document.getElementById('admin-panel');
+const adminLockedMessageEl = document.getElementById('admin-locked-message');
+const adminContentEl = document.getElementById('admin-content');
+const adminUsernameEl = document.getElementById('admin-username');
+const adminPasswordEl = document.getElementById('admin-password');
+const adminLoginBtnEl = document.getElementById('admin-login-btn');
+const adminLogoutBtnEl = document.getElementById('admin-logout-btn');
+const adminAuthMessageEl = document.getElementById('admin-auth-message');
+
+function setAdminUIState() {
+  const isAuth = state.adminAuthenticated;
+  adminPanelEl.classList.toggle('unlocked', isAuth);
+  adminLockedMessageEl.style.display = isAuth ? 'none' : 'block';
+  adminContentEl.style.display = isAuth ? 'block' : 'none';
+  adminLogoutBtnEl.disabled = !isAuth;
+}
+
+function adminLogin() {
+  const user = adminUsernameEl.value.trim();
+  const pass = adminPasswordEl.value;
+  const validUser = 'admin';
+  const validPass = 'Convivencia2026!';
+
+  if (user === validUser && pass === validPass) {
+    state.adminAuthenticated = true;
+    adminAuthMessageEl.textContent = 'Acceso de administrador habilitado.';
+    adminAuthMessageEl.className = 'small-note auth-success';
+    setAdminUIState();
+    renderAdmin();
+    return;
+  }
+
+  state.adminAuthenticated = false;
+  adminAuthMessageEl.textContent = 'Credenciales inválidas. Verifique usuario y contraseña.';
+  adminAuthMessageEl.className = 'small-note auth-error';
+  setAdminUIState();
+}
+
+function adminLogout() {
+  state.adminAuthenticated = false;
+  adminPasswordEl.value = '';
+  adminAuthMessageEl.textContent = 'Sesión cerrada.';
+  adminAuthMessageEl.className = 'small-note';
+  setAdminUIState();
+}
 
 function boot() {
   dateEl.value = new Date().toISOString().slice(0, 10);
@@ -83,6 +129,7 @@ function boot() {
   renderLikert();
   state.actionPlan.homeActivity = homeActivitySelectEl.value;
   state.actionPlan.teacherActivity = teacherActivitySelectEl.value;
+  setAdminUIState();
   renderAdmin();
 }
 
@@ -464,8 +511,8 @@ function familySuggestions(record) {
 
 async function createRecordChartImage(record, type) {
   const canvas = document.createElement('canvas');
-  canvas.width = 420;
-  canvas.height = 280;
+  canvas.width = 600;
+  canvas.height = 400;
   canvas.style.position = 'fixed';
   canvas.style.left = '-9999px';
   document.body.appendChild(canvas);
@@ -523,14 +570,26 @@ async function makeAllIndividualPdf(records) {
 
     const barImg = await createRecordChartImage(record, 'bar');
     const radarImg = await createRecordChartImage(record, 'radar');
-    if (barImg) doc.addImage(barImg, 'PNG', 14, y + 74, 182, 52);
-    if (radarImg) doc.addImage(radarImg, 'PNG', 14, y + 130, 182, 52);
+    doc.addPage();
+    await addReportHeader(doc, `Anexos gráficos - ${record.name}`, [30, 64, 175]);
+    doc.setFontSize(11);
+    doc.text('Gráfico de barras', 14, 34);
+    if (barImg) doc.addImage(barImg, 'PNG', 28, 38, 154, 92);
+    doc.text('Gráfico radar', 14, 142);
+    if (radarImg) doc.addImage(radarImg, 'PNG', 28, 146, 154, 92);
   }
 
   doc.save(`resultados_individuales_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
 function renderAdmin() {
+  if (!state.adminAuthenticated) {
+    groupSummaryEl.innerHTML = '<p>Acceso restringido: inicie sesión como administrador.</p>';
+    courseComparisonEl.innerHTML = '';
+    tableBody.innerHTML = '';
+    return;
+  }
+
   const data = getFilteredRecords();
   if (!data.length) {
     groupSummaryEl.innerHTML = '<p>Sin registros para los filtros seleccionados.</p>';
@@ -655,10 +714,13 @@ async function makeIndividualPdf(record) {
 
   const barImg = state.charts.bar?.toBase64Image();
   const radarImg = state.charts.radar?.toBase64Image();
+  doc.addPage();
+  await addReportHeader(doc, `Anexos gráficos - ${record.name}`, [36, 72, 168]);
   doc.setFontSize(11);
-  doc.text('Gráficos (orden del reporte inmediato)', 14, y + 74);
-  if (barImg) doc.addImage(barImg, 'PNG', 14, y + 78, 182, 54);
-  if (radarImg) doc.addImage(radarImg, 'PNG', 14, y + 136, 182, 54);
+  doc.text('Gráfico de barras (reporte inmediato)', 14, 34);
+  if (barImg) doc.addImage(barImg, 'PNG', 28, 38, 154, 92);
+  doc.text('Gráfico radar (reporte inmediato)', 14, 142);
+  if (radarImg) doc.addImage(radarImg, 'PNG', 28, 146, 154, 92);
 
   doc.save(`reporte_individual_${record.id}.pdf`);
 }
@@ -691,7 +753,7 @@ async function makeGroupPdf(records) {
   doc.text(doc.splitTextToSize(`Casos críticos detectados: ${criticalCases}. Acción sugerida: activar protocolo de derivación a salud y seguimiento con dupla psicosocial.`, 180), 14, y + 22);
 
   const barImg = state.charts.bar?.toBase64Image();
-  if (barImg) doc.addImage(barImg, 'PNG', 120, 20, 75, 55);
+  if (barImg) doc.addImage(barImg, 'PNG', 120, 24, 70, 46);
   doc.save(`reporte_grupal_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -812,23 +874,27 @@ document.getElementById('download-individual-pdf').addEventListener('click', asy
 });
 
 document.getElementById('download-group-pdf').addEventListener('click', async () => {
+  if (!state.adminAuthenticated) return;
   const data = getFilteredRecords();
   if (data.length) await makeGroupPdf(data);
 });
 
 document.getElementById('download-course-report-pdf').addEventListener('click', async () => {
+  if (!state.adminAuthenticated) return;
   const data = getFilteredRecords();
   if (!data.length) return;
   await makeCourseReportPdf(data);
 });
 
 document.getElementById('export-csv').addEventListener('click', () => {
+  if (!state.adminAuthenticated) return;
   const data = getFilteredRecords();
   if (!data.length) return;
   downloadBlob(csvFromRecords(data), 'evaluacion_socioemocional.csv', 'text/csv;charset=utf-8;');
 });
 
 document.getElementById('export-xlsx').addEventListener('click', () => {
+  if (!state.adminAuthenticated) return;
   const data = getFilteredRecords();
   if (!data.length) return;
   const rows = data.map((r) => ({
@@ -867,6 +933,7 @@ document.getElementById('download-bars').addEventListener('click', () => {
 
 
 document.getElementById('download-all-individual-pdf').addEventListener('click', async () => {
+  if (!state.adminAuthenticated) return;
   const data = getFilteredRecords();
   if (!data.length) return;
   await makeAllIndividualPdf(data);
@@ -908,6 +975,12 @@ templateUploadEl.addEventListener('change', async (event) => {
   } catch (error) {
     templateCheckEl.innerHTML = '<p class="check-miss">No se pudo leer la plantilla. Use un archivo JSON válido.</p>';
   }
+});
+
+adminLoginBtnEl.addEventListener('click', adminLogin);
+adminLogoutBtnEl.addEventListener('click', adminLogout);
+adminPasswordEl.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') adminLogin();
 });
 
 [homeActivitySelectEl, teacherActivitySelectEl, familySignatureNameEl, teacherSignatureNameEl].forEach((el) => {

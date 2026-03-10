@@ -249,3 +249,16 @@ button[disabled] { opacity: 0.45; cursor: not-allowed; }
   color: #334155;
   margin-top: 0.45rem;
 }
+
+
+.hidden-admin-content {
+  display: none;
+}
+#admin-panel.unlocked .hidden-admin-content {
+  display: block;
+}
+#admin-panel.unlocked #admin-locked-message {
+  display: none;
+}
+.auth-error { color: #b91c1c; }
+.auth-success { color: #166534; }
