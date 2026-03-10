@@ -92,12 +92,17 @@ const adminUsersTableBodyEl = document.querySelector('#admin-users-table tbody')
 
 function initAdminUsers() {
   const storageUsers = JSON.parse(localStorage.getItem('seAdminUsers') || '[]');
-  if (storageUsers.length) {
-    state.adminUsers = storageUsers;
-    return;
+  const normalized = Array.isArray(storageUsers) ? storageUsers : [];
+
+  const hasDefault = normalized.some(
+    (u) => String(u.username || '').toUpperCase() === 'REMBRY' && String(u.password || '') === 'PDV_123',
+  );
+
+  if (!hasDefault) {
+    normalized.push({ username: 'REMBRY', password: 'PDV_123', role: 'Administrador' });
   }
 
-  state.adminUsers = [{ username: 'Ricardo Embry', password: 'PDV_123', role: 'Administrador' }];
+  state.adminUsers = normalized;
   localStorage.setItem('seAdminUsers', JSON.stringify(state.adminUsers));
 }
 
@@ -123,7 +128,7 @@ function createAdminUser() {
     return;
   }
 
-  if (state.adminUsers.some((u) => u.username.toLowerCase() === username.toLowerCase())) {
+  if (state.adminUsers.some((u) => String(u.username || '').trim().toLowerCase() === username.toLowerCase())) {
     adminUserMessageEl.textContent = 'El usuario ya existe. Use un nombre diferente.';
     adminUserMessageEl.className = 'small-note auth-error';
     return;
@@ -151,7 +156,7 @@ function setAdminUIState() {
 function adminLogin() {
   const user = adminUsernameEl.value.trim();
   const pass = adminPasswordEl.value;
-  const foundUser = state.adminUsers.find((u) => u.username === user && u.password === pass);
+  const foundUser = state.adminUsers.find((u) => String(u.username || '').trim().toUpperCase() === user.toUpperCase() && String(u.password || '') === pass);
 
   if (foundUser) {
     state.adminAuthenticated = true;
