@@ -528,9 +528,10 @@ function getRecordTemplate(record) {
   const expected = buildExpectedChecklist(profileKey);
   const likert = record.responseTemplate?.likert || {};
   const openAnswers = record.openAnswers || [];
+  const openQuestionIds = ['open-1', 'open-2', 'open-3', 'open-4', 'open-5'];
   const answeredLikert = expected.filter((item) => Number(likert[item.key]) >= 1 && Number(likert[item.key]) <= 5).length;
   const answeredOpen = openAnswers.filter((a) => String(a || '').trim().length > 0).length;
-  const total = expected.length + 3;
+  const total = expected.length + 5;
   const answered = answeredLikert + answeredOpen;
   return {
     profileKey,
@@ -541,7 +542,7 @@ function getRecordTemplate(record) {
     answered,
     percent: Math.round((answered / total) * 100),
     missingLikert: expected.filter((item) => !(Number(likert[item.key]) >= 1 && Number(likert[item.key]) <= 5)),
-    missingOpen: ['open-1', 'open-2', 'open-3'].filter((_, i) => !String(openAnswers[i] || '').trim()),
+    missingOpen: openQuestionIds.filter((_, i) => !String(openAnswers[i] || '').trim()),
   };
 }
 
@@ -551,7 +552,7 @@ function renderTemplateVerification(record, customTemplate = null) {
 
   if (customTemplate) {
     const likert = customTemplate.likert || {};
-    const openAnswers = customTemplate.openAnswers || [customTemplate.open1 || '', customTemplate.open2 || '', customTemplate.open3 || ''];
+    const openAnswers = customTemplate.openAnswers || [customTemplate.open1 || '', customTemplate.open2 || '', customTemplate.open3 || '', customTemplate.open4 || '', customTemplate.open5 || ''];
     const tempRecord = { ...record, responseTemplate: { likert }, openAnswers };
     report = getRecordTemplate(tempRecord);
   }
@@ -920,7 +921,13 @@ form.addEventListener('submit', (e) => {
   e.preventDefault();
   const fd = new FormData(form);
   const likert = computeLikertResult(fd);
-  const openAnswers = [fd.get('open-1') || document.getElementById('open-1').value, fd.get('open-2') || document.getElementById('open-2').value, fd.get('open-3') || document.getElementById('open-3').value];
+  const openAnswers = [
+    fd.get('open-1') || document.getElementById('open-1').value,
+    fd.get('open-2') || document.getElementById('open-2').value,
+    fd.get('open-3') || document.getElementById('open-3').value,
+    fd.get('open-4') || document.getElementById('open-4').value,
+    fd.get('open-5') || document.getElementById('open-5').value,
+  ];
   const profileKey = getProfileKeyByCourse(courseEl.value);
   const profileQuestions = questionBank[profileKey];
   const likertResponses = {};
