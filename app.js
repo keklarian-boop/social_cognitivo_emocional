@@ -611,7 +611,9 @@ async function makeAllIndividualPdf(records) {
     const record = records[i];
     if (i > 0) doc.addPage();
 
-    await addReportHeader(doc, `Resultados individuales por curso - ${record.course}`, [30, 64, 175]);
+    const headerTitle = `Resultados individuales por curso - ${record.course}`;
+    const headerColor = [30, 64, 175];
+    await addReportHeader(doc, headerTitle, headerColor);
 
     doc.setFontSize(10);
     doc.text(`Estudiante: ${record.name}`, 14, 33);
@@ -626,15 +628,23 @@ async function makeAllIndividualPdf(records) {
 
     const fam = familySuggestions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
     const teacher = teacherPreventiveActions(record).map((tip, idx) => `${idx + 1}. ${tip}`).join(' ');
-    doc.text(doc.splitTextToSize(`Resultados cualitativos y estrategias: ${record.openAnalysis.synthesis} ${record.recommendations.join(' ')}`, 180), 14, y + 6);
-    doc.text(doc.splitTextToSize(`Sugerencias para la familia: ${fam}`, 180), 14, y + 24);
-    doc.text(doc.splitTextToSize(`Acciones preventivas para docentes: ${teacher}`, 180), 14, y + 42);
-    doc.text(doc.splitTextToSize(`Compromiso firmado familia-docente: ${signedCommitmentText(record)}`, 180), 14, y + 58);
+    const sections = [
+      `Resultados cualitativos y estrategias: ${record.openAnalysis.synthesis} ${record.recommendations.join(' ')}`,
+      `Sugerencias para la familia: ${fam}`,
+      `Acciones preventivas para docentes: ${teacher}`,
+      `Compromiso firmado familia-docente: ${signedCommitmentText(record)}`,
+    ];
+
+    for (const section of sections) {
+      const lines = doc.splitTextToSize(section, 180);
+      y = await ensurePageSpace(doc, y + 6, (lines.length * 5) + 4, headerTitle, headerColor);
+      y = writeWrappedText(doc, section, 14, y, 180, 5);
+    }
 
     const barImg = await createRecordChartImage(record, 'bar');
     const radarImg = await createRecordChartImage(record, 'radar');
     doc.addPage();
-    await addReportHeader(doc, `Anexos gráficos - ${record.name}`, [30, 64, 175]);
+    await addReportHeader(doc, `Anexos gráficos - ${record.name}`, headerColor);
     doc.setFontSize(11);
     doc.text('Gráfico de barras', 14, 34);
     if (barImg) doc.addImage(barImg, 'PNG', 28, 38, 154, 92);
@@ -749,10 +759,26 @@ async function addReportHeader(doc, title, fillColor = [36, 72, 168]) {
   doc.setTextColor(20, 20, 20);
 }
 
+function writeWrappedText(doc, text, x, y, maxWidth, lineHeight = 5) {
+  const lines = doc.splitTextToSize(text, maxWidth);
+  doc.text(lines, x, y);
+  return y + (lines.length * lineHeight);
+}
+
+async function ensurePageSpace(doc, y, neededHeight, headerTitle, fillColor) {
+  if (y + neededHeight <= 285) return y;
+  doc.addPage();
+  await addReportHeader(doc, `${headerTitle} (continuación)`, fillColor);
+  return 34;
+}
+
+
 async function makeIndividualPdf(record) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
-  await addReportHeader(doc, 'Reporte Individual Socioemocional', [36, 72, 168]);
+  const headerTitle = 'Reporte Individual Socioemocional';
+  const headerColor = [36, 72, 168];
+  await addReportHeader(doc, headerTitle, headerColor);
 
   doc.setFontSize(10);
   doc.text(`Estudiante: ${record.name}`, 14, 34);
@@ -769,16 +795,24 @@ async function makeIndividualPdf(record) {
     y += 6;
   });
 
-  doc.text(doc.splitTextToSize(`Resultados cualitativos: ${record.openAnalysis.synthesis}`, 182), 14, y + 2);
-  doc.text(doc.splitTextToSize(`Estrategias sugeridas: ${record.recommendations.join(' ')}`, 182), 14, y + 16);
-  doc.text(doc.splitTextToSize(`Acciones en casa: ${familyGuidanceDetailed(record).join(' ')}`, 182), 14, y + 30);
-  doc.text(doc.splitTextToSize(`Acciones docentes: ${teacherPreventiveActions(record).join(' ')}`, 182), 14, y + 44);
-  doc.text(doc.splitTextToSize(`Compromiso firmado: ${signedCommitmentText(record)}`, 182), 14, y + 58);
+  const sections = [
+    `Resultados cualitativos: ${record.openAnalysis.synthesis}`,
+    `Estrategias sugeridas: ${record.recommendations.join(' ')}`,
+    `Acciones en casa: ${familyGuidanceDetailed(record).join(' ')}`,
+    `Acciones docentes: ${teacherPreventiveActions(record).join(' ')}`,
+    `Compromiso firmado: ${signedCommitmentText(record)}`,
+  ];
+
+  for (const section of sections) {
+    const lines = doc.splitTextToSize(section, 182);
+    y = await ensurePageSpace(doc, y + 6, (lines.length * 5) + 4, headerTitle, headerColor);
+    y = writeWrappedText(doc, section, 14, y, 182, 5);
+  }
 
   const barImg = state.charts.bar?.toBase64Image();
   const radarImg = state.charts.radar?.toBase64Image();
   doc.addPage();
-  await addReportHeader(doc, `Anexos gráficos - ${record.name}`, [36, 72, 168]);
+  await addReportHeader(doc, `Anexos gráficos - ${record.name}`, headerColor);
   doc.setFontSize(11);
   doc.text('Gráfico de barras (reporte inmediato)', 14, 34);
   if (barImg) doc.addImage(barImg, 'PNG', 28, 38, 154, 92);
