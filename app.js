@@ -705,7 +705,7 @@ function renderAdmin() {
   tableBody.innerHTML = data.map((r) => {
     const alert = r.generalAvg <= 2.4 ? '⚠️ Crítico' : 'OK';
     const name = r.anonymize ? `Est-${r.id.slice(-4)}` : r.name;
-    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td><td><button class="secondary verify-template" data-id="${r.id}">Verificar plantilla</button> <button class="secondary delete-record" data-id="${r.id}">Eliminar</button></td></tr>`;
+    return `<tr><td>${r.date}</td><td>${name}</td><td>${r.course}</td><td>${r.generalAvg}</td><td>${r.level.text}</td><td>${alert}</td><td><button class="secondary download-record" data-id="${r.id}">Descargar reporte</button> <button class="secondary verify-template" data-id="${r.id}">Verificar plantilla</button> <button class="secondary delete-record" data-id="${r.id}">Eliminar</button></td></tr>`;
   }).join('');
 }
 
@@ -1043,7 +1043,15 @@ document.getElementById('download-all-individual-pdf').addEventListener('click',
   await makeAllIndividualPdf(data);
 });
 
-tableBody.addEventListener('click', (event) => {
+tableBody.addEventListener('click', async (event) => {
+  const downloadBtn = event.target.closest('.download-record');
+  if (downloadBtn) {
+    const record = state.records.find((r) => r.id === downloadBtn.dataset.id);
+    if (!record) return;
+    await makeIndividualPdf(record);
+    return;
+  }
+
   const verifyBtn = event.target.closest('.verify-template');
   if (verifyBtn) {
     const record = state.records.find((r) => r.id === verifyBtn.dataset.id);
