@@ -604,6 +604,36 @@ async function createRecordChartImage(record, type) {
   return img;
 }
 
+async function createDimensionChartImage(values, type, labelPrefix = '') {
+  const canvas = document.createElement('canvas');
+  canvas.width = 600;
+  canvas.height = 400;
+  canvas.style.position = 'fixed';
+  canvas.style.left = '-9999px';
+  document.body.appendChild(canvas);
+
+  const chart = new Chart(canvas, {
+    type,
+    data: {
+      labels: dimensions,
+      datasets: [{
+        label: type === 'bar' ? `Promedio por dimensión ${labelPrefix}`.trim() : `Perfil radar ${labelPrefix}`.trim(),
+        data: values,
+        backgroundColor: type === 'bar' ? '#3b82f6' : 'rgba(16,185,129,0.2)',
+        borderColor: type === 'bar' ? '#2563eb' : '#10b981',
+      }],
+    },
+    options: type === 'bar' ? { animation: false, scales: { y: { min: 0, max: 5 } } } : { animation: false, scales: { r: { min: 0, max: 5 } } },
+  });
+
+  await new Promise((resolve) => setTimeout(resolve, 120));
+  const img = chart.toBase64Image();
+  chart.destroy();
+  canvas.remove();
+  return img;
+}
+
+
 async function makeAllIndividualPdf(records) {
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF();
@@ -850,8 +880,15 @@ async function makeGroupPdf(records) {
   const criticalCases = records.filter((r) => r.generalAvg <= 2.4).length;
   doc.text(doc.splitTextToSize(`Casos críticos detectados: ${criticalCases}. Acción sugerida: activar protocolo de derivación a salud y seguimiento con dupla psicosocial.`, 180), 14, y + 22);
 
-  const barImg = state.charts.bar?.toBase64Image();
-  if (barImg) doc.addImage(barImg, 'PNG', 120, 24, 70, 46);
+  const barImg = await createDimensionChartImage(dimMeans, 'bar', '(grupal)');
+  const radarImg = await createDimensionChartImage(dimMeans, 'radar', '(grupal)');
+  doc.addPage();
+  await addReportHeader(doc, 'Anexos gráficos - Reporte grupal', [15, 23, 42]);
+  doc.setFontSize(11);
+  doc.text('Gráfico de barras', 14, 34);
+  if (barImg) doc.addImage(barImg, 'PNG', 28, 38, 154, 92);
+  doc.text('Gráfico radar', 14, 142);
+  if (radarImg) doc.addImage(radarImg, 'PNG', 28, 146, 154, 92);
   doc.save(`reporte_grupal_${new Date().toISOString().slice(0, 10)}.pdf`);
 }
 
@@ -903,6 +940,17 @@ async function makeCourseReportPdf(records) {
     const commitments = rows.map((r) => `- ${r.name}: ${signedCommitmentText(r)}`).join(' ');
     doc.text('Compromisos firmados registrados:', 14, y + 92);
     doc.text(doc.splitTextToSize(commitments || 'Sin compromisos registrados.', 180), 14, y + 98);
+
+    const courseMeans = dimensions.map((d) => Number((rows.reduce((a, r) => a + r.byDimension[d].avg, 0) / rows.length).toFixed(2)));
+    const courseBar = await createDimensionChartImage(courseMeans, 'bar', `(${course})`);
+    const courseRadar = await createDimensionChartImage(courseMeans, 'radar', `(${course})`);
+    doc.addPage();
+    await addReportHeader(doc, `Anexos gráficos - ${course}`, [17, 24, 39]);
+    doc.setFontSize(11);
+    doc.text('Gráfico de barras', 14, 34);
+    if (courseBar) doc.addImage(courseBar, 'PNG', 28, 38, 154, 92);
+    doc.text('Gráfico radar', 14, 142);
+    if (courseRadar) doc.addImage(courseRadar, 'PNG', 28, 146, 154, 92);
   }
 
   doc.save(`reporte_docente_por_curso_${new Date().toISOString().slice(0, 10)}.pdf`);
