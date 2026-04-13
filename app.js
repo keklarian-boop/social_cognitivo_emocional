@@ -90,6 +90,8 @@ const adminUserMessageEl = document.getElementById('admin-user-message');
 const adminUsersTableBodyEl = document.querySelector('#admin-users-table tbody');
 const importAllDataBtnEl = document.getElementById('import-all-data-btn');
 const importAllDataFileEl = document.getElementById('import-all-data-file');
+const importCsvDataBtnEl = document.getElementById('import-csv-data-btn');
+const importCsvDataFileEl = document.getElementById('import-csv-data-file');
 
 
 function initAdminUsers() {
@@ -146,7 +148,102 @@ function createAdminUser() {
 }
 
 
-function applyImportedData(payload) {
+function normalizeImportedRecord(rawRecord) {
+  const safe = rawRecord && typeof rawRecord === 'object' ? rawRecord : {};
+  const byDimension = Object.fromEntries(
+    dimensions.map((dimension) => {
+      const value = safe.byDimension?.[dimension] ?? safe[dimension] ?? 0;
+      const avgSource = typeof value === 'object' && value !== null ? value.avg : value;
+      const stdSource = typeof value === 'object' && value !== null ? value.std : 0;
+      const avg = Number(avgSource);
+      const std = Number(stdSource);
+      return [
+        dimension,
+        {
+          avg: Number.isFinite(avg) ? Number(avg.toFixed(2)) : 0,
+          std: Number.isFinite(std) ? Number(std.toFixed(2)) : 0,
+        },
+      ];
+    }),
+  );
+
+  const computedGeneral = Number((dimensions.reduce((sum, d) => sum + byDimension[d].avg, 0) / dimensions.length).toFixed(2));
+  const generalAvgRaw = Number(safe.generalAvg);
+  const generalAvg = Number.isFinite(generalAvgRaw) ? Number(generalAvgRaw.toFixed(2)) : computedGeneral;
+  const openAnswers = Array.isArray(safe.openAnswers) ? safe.openAnswers.map((item) => String(item || '')) : [];
+
+  const normalized = {
+    ...safe,
+    id: String(safe.id || crypto.randomUUID()),
+    name: String(safe.name || 'Sin nombre'),
+    age: Number(safe.age) || 0,
+    course: String(safe.course || 'No informado'),
+    levelKey: safe.levelKey || getLevelByCourse(String(safe.course || '')),
+    profileKey: safe.profileKey || getProfileKeyByCourse(String(safe.course || '')),
+    date: String(safe.date || new Date().toISOString().slice(0, 10)),
+    anonymize: Boolean(safe.anonymize),
+    byDimension,
+    generalAvg,
+    level: interpretation(generalAvg),
+    openAnswers,
+    openAnalysis: safe.openAnalysis && typeof safe.openAnalysis === 'object' ? safe.openAnalysis : analyzeOpenAnswers(openAnswers),
+    responseTemplate: safe.responseTemplate && typeof safe.responseTemplate === 'object' ? safe.responseTemplate : { likert: {} },
+    actionPlan: safe.actionPlan && typeof safe.actionPlan === 'object' ? safe.actionPlan : { ...state.actionPlan },
+  };
+
+  normalized.recommendations = recommendations(normalized.byDimension);
+  normalized.longitudinal = longitudinalInsight(normalized);
+  normalized.intraSubject = intraSubjectComparison(normalized);
+  normalized.courseBenchmark = courseBenchmark(normalized);
+  normalized.healthReferral = healthReferral(normalized);
+  return normalized;
+}
+
+function parseCsvRows(csvText) {
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    throw new Error('CSV inválido: no contiene datos.');
+  }
+
+  const headers = lines[0].split(',').map((header) => header.trim().toLowerCase());
+  const getIndex = (label) => headers.indexOf(label);
+  const columnIndex = {
+    id: getIndex('id'),
+    date: getIndex('fecha'),
+    name: getIndex('nombre'),
+    course: getIndex('curso'),
+    generalAvg: getIndex('promedio_general'),
+  };
+  const missingDimensions = dimensions.filter((dimension) => getIndex(dimension.toLowerCase()) === -1);
+
+  if (columnIndex.date === -1 || columnIndex.name === -1 || columnIndex.course === -1 || missingDimensions.length) {
+    throw new Error('CSV inválido: faltan columnas requeridas (fecha, nombre, curso y dimensiones).');
+  }
+
+  return lines.slice(1).map((line) => {
+    const cols = line.split(',').map((cell) => cell.trim());
+    const raw = {
+      id: columnIndex.id >= 0 ? cols[columnIndex.id] : crypto.randomUUID(),
+      date: cols[columnIndex.date],
+      name: cols[columnIndex.name],
+      course: cols[columnIndex.course],
+      generalAvg: columnIndex.generalAvg >= 0 ? Number(cols[columnIndex.generalAvg]) : null,
+    };
+
+    dimensions.forEach((dimension) => {
+      const idx = getIndex(dimension.toLowerCase());
+      raw[dimension] = Number(cols[idx]);
+    });
+
+    return raw;
+  });
+}
+
+function applyImportedData(payload, mode = 'replace') {
   const importedRecords = Array.isArray(payload) ? payload : payload.records;
   const importedUsers = Array.isArray(payload?.adminUsers) ? payload.adminUsers : null;
 
@@ -154,10 +251,19 @@ function applyImportedData(payload) {
     throw new Error('Formato inválido: se esperaba un arreglo de registros o un objeto con { records }.');
   }
 
-  state.records = importedRecords;
+  const normalizedRecords = importedRecords.map((record) => normalizeImportedRecord(record));
+
+  if (mode === 'append') {
+    const existingIds = new Set(state.records.map((record) => record.id));
+    const fresh = normalizedRecords.filter((record) => !existingIds.has(record.id));
+    state.records = [...state.records, ...fresh];
+  } else {
+    state.records = normalizedRecords;
+  }
+
   localStorage.setItem('seRecords', JSON.stringify(state.records));
 
-  if (importedUsers && importedUsers.length) {
+  if (importedUsers && importedUsers.length && mode === 'replace') {
     state.adminUsers = importedUsers;
     localStorage.setItem('seAdminUsers', JSON.stringify(state.adminUsers));
   }
@@ -177,7 +283,13 @@ function applyImportedData(payload) {
 async function importAllDataFromFile(file) {
   const raw = await file.text();
   const parsed = JSON.parse(raw);
-  applyImportedData(parsed);
+  applyImportedData(parsed, 'replace');
+}
+
+async function importCsvDataFromFile(file) {
+  const raw = await file.text();
+  const parsedCsvRows = parseCsvRows(raw);
+  applyImportedData(parsedCsvRows, 'append');
 }
 
 function setAdminUIState() {
@@ -1197,6 +1309,25 @@ importAllDataFileEl?.addEventListener('change', async (event) => {
     adminAuthMessageEl.className = 'small-note auth-error';
   } finally {
     importAllDataFileEl.value = '';
+  }
+});
+importCsvDataBtnEl?.addEventListener('click', () => {
+  if (!state.adminAuthenticated) return;
+  importCsvDataFileEl.click();
+});
+importCsvDataFileEl?.addEventListener('change', async (event) => {
+  if (!state.adminAuthenticated) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    await importCsvDataFromFile(file);
+    adminAuthMessageEl.textContent = 'Datos CSV incorporados correctamente al histórico.';
+    adminAuthMessageEl.className = 'small-note auth-success';
+  } catch (error) {
+    adminAuthMessageEl.textContent = `Error al cargar CSV: ${error.message}`;
+    adminAuthMessageEl.className = 'small-note auth-error';
+  } finally {
+    importCsvDataFileEl.value = '';
   }
 });
 
