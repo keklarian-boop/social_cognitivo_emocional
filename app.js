@@ -88,6 +88,8 @@ const newAdminPasswordEl = document.getElementById('new-admin-password');
 const createAdminUserBtnEl = document.getElementById('create-admin-user-btn');
 const adminUserMessageEl = document.getElementById('admin-user-message');
 const adminUsersTableBodyEl = document.querySelector('#admin-users-table tbody');
+const importAllDataBtnEl = document.getElementById('import-all-data-btn');
+const importAllDataFileEl = document.getElementById('import-all-data-file');
 
 
 function initAdminUsers() {
@@ -141,6 +143,41 @@ function createAdminUser() {
   newAdminPasswordEl.value = '';
   adminUserMessageEl.textContent = 'Usuario administrador creado correctamente.';
   adminUserMessageEl.className = 'small-note auth-success';
+}
+
+
+function applyImportedData(payload) {
+  const importedRecords = Array.isArray(payload) ? payload : payload.records;
+  const importedUsers = Array.isArray(payload?.adminUsers) ? payload.adminUsers : null;
+
+  if (!Array.isArray(importedRecords)) {
+    throw new Error('Formato inválido: se esperaba un arreglo de registros o un objeto con { records }.');
+  }
+
+  state.records = importedRecords;
+  localStorage.setItem('seRecords', JSON.stringify(state.records));
+
+  if (importedUsers && importedUsers.length) {
+    state.adminUsers = importedUsers;
+    localStorage.setItem('seAdminUsers', JSON.stringify(state.adminUsers));
+  }
+
+  state.currentRecord = null;
+  summaryEl.innerHTML = '<p>Información cargada correctamente. Seleccione un registro para visualizar resultados.</p>';
+  ['download-individual-pdf', 'download-radar', 'download-bars'].forEach((id) => (document.getElementById(id).disabled = true));
+  state.charts.bar?.destroy();
+  state.charts.radar?.destroy();
+  state.charts.bar = null;
+  state.charts.radar = null;
+
+  renderAdminUsers();
+  renderAdmin();
+}
+
+async function importAllDataFromFile(file) {
+  const raw = await file.text();
+  const parsed = JSON.parse(raw);
+  applyImportedData(parsed);
 }
 
 function setAdminUIState() {
@@ -1143,6 +1180,25 @@ adminPasswordEl.addEventListener('keydown', (event) => {
   if (event.key === 'Enter') adminLogin();
 });
 createAdminUserBtnEl.addEventListener('click', createAdminUser);
+importAllDataBtnEl?.addEventListener('click', () => {
+  if (!state.adminAuthenticated) return;
+  importAllDataFileEl.click();
+});
+importAllDataFileEl?.addEventListener('change', async (event) => {
+  if (!state.adminAuthenticated) return;
+  const file = event.target.files?.[0];
+  if (!file) return;
+  try {
+    await importAllDataFromFile(file);
+    adminAuthMessageEl.textContent = 'Información cargada exitosamente desde archivo externo.';
+    adminAuthMessageEl.className = 'small-note auth-success';
+  } catch (error) {
+    adminAuthMessageEl.textContent = `Error al cargar información: ${error.message}`;
+    adminAuthMessageEl.className = 'small-note auth-error';
+  } finally {
+    importAllDataFileEl.value = '';
+  }
+});
 
 [homeActivitySelectEl, teacherActivitySelectEl, familySignatureNameEl, teacherSignatureNameEl].forEach((el) => {
   el.addEventListener('change', () => {
